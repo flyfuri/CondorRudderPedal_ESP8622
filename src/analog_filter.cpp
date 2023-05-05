@@ -3,7 +3,17 @@
 #include "analog_filter.h"
 #include "Arduino.h"
 
+CFilterAnalog::CFilterAnalog(){ //Constructor
+    m_init();
+    m__filtert_micros = 1000;
+}
+
 CFilterAnalog::CFilterAnalog(unsigned long targfilttime_micros){ //Constructor
+    m_init();
+    m__filtert_micros = targfilttime_micros;
+}
+
+void CFilterAnalog::m_init(){
     for(int i = 0; i < BUFFSIZE; i++){
         m__fb[i].value = 0;    
         m__fb[i].tstamp = 0;
@@ -14,10 +24,8 @@ CFilterAnalog::CFilterAnalog(unsigned long targfilttime_micros){ //Constructor
     
     m__total = 0;
     m__nbr_meas = 0;
-    m__fcycdone = false;
-
-    m__filtert_micros = targfilttime_micros;
-  }
+    m__fcycdone = false;   
+}
 
 void CFilterAnalog::m__add(int &rawvalue, unsigned long &tstampNow){
     m__PntrNewest->value = rawvalue;
