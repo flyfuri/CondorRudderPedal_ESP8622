@@ -16,12 +16,13 @@ class CFilterAnalog {
     unsigned long m__micros_start;
     unsigned long m__filtert_micros;
   
-  
+    void m_init();
     void m__add(int &rawvalue, unsigned long &tstampNow); //add one measurement to total and buffer
     void m__remove(); //remove a expired measurements from total and buffer
   
   public:
-    CFilterAnalog(unsigned long targfilttime_micros = 10000);      
+    CFilterAnalog(); 
+    CFilterAnalog(unsigned long targfilttime_micros);      
     int measurement(int &measure);
     unsigned int getNbrMeas();
     unsigned long setgetTargfiltT_micros (unsigned long targfilttime_micros);

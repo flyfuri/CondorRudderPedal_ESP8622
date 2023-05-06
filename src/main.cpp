@@ -31,7 +31,7 @@ unsigned long t_lastcycl, t_now; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
 
-CFilterAnalog filterA(10000), filterB(10000);
+CFilterAnalog filterCH[5]; //1=Ch1, 2=Ch2
 CTimer TimerInitLeft, TimerInitRigth, TimerBlink, TimerMux;
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
 float tempLPedal, tempRPedal;
@@ -59,7 +59,7 @@ void procDayLightFilter(short chNr, bool bLEDisON){
   if (chNr > 0 && chNr < 5){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; //A1: right pedal 772..118
-      filtValue[chNr] = filterA.measurement(analogRaw[chNr]);
+      filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
@@ -128,7 +128,7 @@ void loop() {
         case 1:   procDayLightFilter(1, bIR_LED_on);
                   act_Mux_Channel = 2;
                   break;
-        case 2:    procDayLightFilter(2, bIR_LED_on);
+        case 2:   procDayLightFilter(2, bIR_LED_on);
                   sumCh1u2 = filtValue[1] + filtValue[2];
                   act_Mux_Channel = 3;
                   break;
