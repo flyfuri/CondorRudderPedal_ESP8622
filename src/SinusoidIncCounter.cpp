@@ -3,7 +3,7 @@
 #include "SinusoidIncCounter.h"
 #include "Arduino.h"
 
-SinIncCntr::SinIncCntr(){
+CSinIncCntr::CSinIncCntr(){
     for (int i = 0; i > 2; i++){
         m_measures[i].prev=0;
         m_measures[i].recent=0;
@@ -11,43 +11,41 @@ SinIncCntr::SinIncCntr(){
     }
 }
 
-void SinIncCntr::m_count(){
+void CSinIncCntr::m_count(){
     if (m_ch1higher_lastcnt == m_ch1higher_now){
         m_cntDirect = m_cntDirect * -1;
         m_actPos += m_cntDirect;
     }
 }
 
-void SinIncCntr::m_defineNextHystfields(){
-    switch(m_act_Hisfld){
-            case m_sumHysteresisField::HSF_MIDH:
+void CSinIncCntr::m_defineNextHystfields(){
+    if(m_act_Hisfld == m_sumHysteresisField::HSF_MIDH){
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_LOW;
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_LOW;
-                break;
-            case m_sumHysteresisField::HSF_MIDL:
+    }
+    else if(m_act_Hisfld == m_sumHysteresisField::HSF_MIDL){
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_UP;
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_UP;
-                break;
-            case m_sumHysteresisField::HSF_LOW:
+    }
+    else if(m_act_Hisfld == m_sumHysteresisField::HSF_LOW){
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_MIDH;
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_UP;
-                break;
-            case m_sumHysteresisField::HSF_UP:
+    }
+    else if(m_act_Hisfld == m_sumHysteresisField::HSF_UP){
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_MIDL;
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_LOW;
-                break;
-        }
+    }
 }
 
 
-void SinIncCntr::addmeas (int chNr, int value){
+void CSinIncCntr::addmeas (int chNr, int value){
     if(chNr == 1 || chNr == 2){
         m_measures[chNr].prev = m_measures[chNr].recent;
         m_measures[chNr].recent = value;
     }
 } 
 
-int SinIncCntr::calc(){
+int CSinIncCntr::calc(){
     //create sum curve points
     m_measures[0].prev = m_measures[1].prev + m_measures[2].prev;
     m_measures[0].recent = m_measures[1].recent + m_measures[2].recent;
@@ -92,10 +90,10 @@ int SinIncCntr::calc(){
     return m_actPos;
 } 
 
-int SinIncCntr::read(){
+int CSinIncCntr::read(){
     return m_actPos;
 } 
 
-int SinIncCntr::setTo(int value){
+int CSinIncCntr::setTo(int value){
     return m_actPos = value;
 } 
