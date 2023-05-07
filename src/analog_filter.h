@@ -3,7 +3,7 @@ namespace ANFLTR{
 }
 class CFilterAnalog {
   private:
-      struct m__rawMeas{
+    struct m__rawMeas{
       int value;
       signed long tstamp;
     } m__fb[BUFFSIZE];
