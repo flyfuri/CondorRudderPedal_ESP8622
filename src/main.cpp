@@ -54,6 +54,8 @@ typedef struct  {
 
 tdef_hat hat;
 
+
+
 //procedure daylight filter
 void procDayLightFilter(short chNr, bool bLEDisON){
   if (chNr > 0 && chNr < 5){
@@ -63,6 +65,16 @@ void procDayLightFilter(short chNr, bool bLEDisON){
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
+    }
+  }
+}
+
+//procedure daylight filter
+void readChannel(short chNr, bool bLEDisON){
+  if (chNr > 0 && chNr < 5){
+    if (bLEDisON){
+      analogRaw[chNr] = analogRead(analogInPin); //A1: right pedal 772..118
+      filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
     }
   }
 }
@@ -98,7 +110,7 @@ void setup() {
   #else 
     TimerMux.setTime(1);
   #endif
-  Serial.begin(115200);
+  Serial.begin(921600);//(115200);
 
   //initialize hatire
   hat.Begin=0xAAAA; // header frame 
@@ -125,29 +137,29 @@ void loop() {
   }
   if(!bMuxDelay){
     switch(act_Mux_Channel){
-        case 1:   procDayLightFilter(1, bIR_LED_on);
+        case 1:   readChannel(1, bIR_LED_on);
                   act_Mux_Channel = 2;
                   break;
-        case 2:   procDayLightFilter(2, bIR_LED_on);
+        case 2:   readChannel(2, bIR_LED_on);
                   sumCh1u2 = filtValue[1] + filtValue[2];
                   act_Mux_Channel = 3;
                   break;
-        case 3:   
+        case 3:   readChannel(3, bIR_LED_on);
                   act_Mux_Channel = 4;
                   break;
-        case 4:   
+        case 4:   readChannel(4, bIR_LED_on);
                   act_Mux_Channel = 5;
                   break;
     }
   }
   if(i_clk == 0) {
-      bIR_LED_on = false;
+      bIR_LED_on = true;
       digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
       act_Mux_Channel = 0;
       bMuxDelay = false;
       i_clk++;
   } 
-  else if (i_clk == 10) {
+  /*else if (i_clk == 10) {
       act_Mux_Channel = 1;  //trigger 1 measure for all channels
         i_clk++;
   }
@@ -156,23 +168,23 @@ void loop() {
         i_clk++;
       }
   } 
-  else if (i_clk == 20) {
+  else if (i_clk == 10) {
     bIR_LED_on = true;
     digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
     i_clk++;
-  } 
-  else if (i_clk == 30) { 
+  } */
+  else if (i_clk == 10) { 
       act_Mux_Channel = 1; //trigger 1 measure for all channels
       i_clk++;
   }
-  else if (i_clk == 31){
+  else if (i_clk == 11){
       if (act_Mux_Channel == 5){
         i_clk++;
       }
   }
-  else if (i_clk > 40) { 
-      bIR_LED_on = false;
-      digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);   
+  else if (i_clk > 12) { 
+      /*bIR_LED_on = true;
+      digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);  */ 
     #if DEBGOUT == 2
       Serial.print(analogRaw1);
       Serial.print("  ");
