@@ -1,4 +1,4 @@
-class SinIncCntr{
+class CSinIncCntr{
     private: 
         int m_lim_up = 150, m_lim_low = 100;
         int m_lim_center = (m_lim_up + m_lim_low)/2;  
@@ -26,7 +26,7 @@ class SinIncCntr{
         void m_count(); //determen count direction and count
         
     public:
-        SinIncCntr();  
+        CSinIncCntr();  
         void addmeas (int chNr, int value); 
         int calc();
         int read();
