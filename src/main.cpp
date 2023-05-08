@@ -32,7 +32,7 @@ unsigned long t_lastcycl, t_now; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
 
-CFilterAnalog filterCH[5]; //1=Ch1, 2=Ch2
+CFilterAnalog filterCH[5]{{1000}, {1000}, {1000}, {1000}, {1000} };; //1=Ch1, 2=Ch2
 CTimer TimerInitLeft, TimerInitRigth, TimerBlink, TimerMux;
 CSinIncCntr encoderL; //encoder Left pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
