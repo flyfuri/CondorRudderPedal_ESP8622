@@ -3,6 +3,16 @@
 #include "SinusoidIncCounter.h"
 #include "Arduino.h"
 
+#define DEBGOUT 99
+
+#if DEBGOUT == 99
+  #define dbugprint(x) Serial.print(x)
+  #define dbugprintln(x) Serial.println(x)
+#else
+  #define dbugprint(x) 
+  #define dbugprintln(x) 
+#endif
+
 CSinIncCntr::CSinIncCntr(){
     for (int i = 0; i > 2; i++){
         m_measures[i].prev=0;
@@ -14,26 +24,26 @@ CSinIncCntr::CSinIncCntr(){
 void CSinIncCntr::m_count(){
     if (m_ch1higher_lastcnt == m_ch1higher_now){
         m_cntDirect = m_cntDirect * -1;
-        m_actPos += m_cntDirect;
     }
+    m_actPos += m_cntDirect;
 }
 
 void CSinIncCntr::m_defineNextHystfields(){
     if(m_act_Hisfld == m_sumHysteresisField::HSF_MIDH){
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_LOW;
-                m_nxtHistfld1 = m_sumHysteresisField::HSF_LOW;
+                m_nxtHistfld2 = m_sumHysteresisField::HSF_LOW;
     }
     else if(m_act_Hisfld == m_sumHysteresisField::HSF_MIDL){
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_UP;
-                m_nxtHistfld1 = m_sumHysteresisField::HSF_UP;
+                m_nxtHistfld2 = m_sumHysteresisField::HSF_UP;
     }
     else if(m_act_Hisfld == m_sumHysteresisField::HSF_LOW){
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_MIDH;
-                m_nxtHistfld1 = m_sumHysteresisField::HSF_UP;
+                m_nxtHistfld2 = m_sumHysteresisField::HSF_UP;
     }
     else if(m_act_Hisfld == m_sumHysteresisField::HSF_UP){
                 m_nxtHistfld1 = m_sumHysteresisField::HSF_MIDL;
-                m_nxtHistfld1 = m_sumHysteresisField::HSF_LOW;
+                m_nxtHistfld2 = m_sumHysteresisField::HSF_LOW;
     }
 }
 
@@ -49,19 +59,23 @@ int CSinIncCntr::calc(){
     //create sum curve points
     m_measures[0].prev = m_measures[1].prev + m_measures[2].prev;
     m_measures[0].recent = m_measures[1].recent + m_measures[2].recent;
-
+    
     //determine in which hysteresis field the sum curve is
-    if (m_measures[0].recent >= m_lim_center && m_measures[0].recent < m_lim_up )
+    if (m_measures[0].recent >= m_lim_center && m_measures[0].recent < m_lim_up ){
         m_act_Hisfld = m_sumHysteresisField::HSF_MIDH;
-    else if (m_measures[0].recent >= m_lim_up )
+    }
+    else if (m_measures[0].recent >= m_lim_up ){
         m_act_Hisfld = m_sumHysteresisField::HSF_UP;
-    else if (m_measures[0].recent < m_lim_center && m_measures[0].recent >= m_lim_low )
+    }
+    else if (m_measures[0].recent < m_lim_center && m_measures[0].recent >= m_lim_low ){
         m_act_Hisfld = m_sumHysteresisField::HSF_MIDL;
-    else if (m_measures[0].recent < m_lim_low )
+    }
+    else if (m_measures[0].recent < m_lim_low ){
         m_act_Hisfld = m_sumHysteresisField::HSF_LOW;
+    }
 
     //set next hysteresisfields if undefiened (ANY) yet
-    if (m_nxtHistfld1 == m_sumHysteresisField::HSF_ANY || m_nxtHistfld2){
+    if (m_nxtHistfld1 == m_sumHysteresisField::HSF_ANY || m_nxtHistfld2 == m_sumHysteresisField::HSF_ANY){
         m_defineNextHystfields();
     } 
 
@@ -87,6 +101,18 @@ int CSinIncCntr::calc(){
                 m_defineNextHystfields();
         }
     }
+    dbugprint(" ");
+    dbugprint(m_cntDirect);
+    dbugprint(" ");
+    dbugprint(m_act_Hisfld);
+    dbugprint(" ");
+    dbugprint(m_nxtHistfld1);
+    dbugprint(" ");
+    dbugprint(m_nxtHistfld2);
+    dbugprint(" ");
+    dbugprint(m_ch1higher_now);
+    dbugprint(" ");
+    dbugprintln(m_ch1higher_lastcnt);
     return m_actPos;
 } 
 

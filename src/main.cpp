@@ -4,7 +4,7 @@
 #include <SinusoidIncCounter.h>
 
 #define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
-#define DEBGOUT 99 //debug chanel mode: 0=normal(hitire) : 1=value 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
+#define DEBGOUT -1 //debug chanel mode: 0=normal(hitire) : 1=value 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
 #define SCALEM 2 //Scalemode:  0= +/-180  1= 0..256(128 in middle) 2=unscaled
 
 #if DEBGOUT == 99
@@ -91,6 +91,7 @@ void setup() {
   i_clk=0;
   sumCh1u2=0;
   bMuxDelay = false;
+  encoderL.setTo(0);
   //analogReference(DEFAULT);
   pinMode(ACT_MUX_CH1, OUTPUT); 
   pinMode(ACT_MUX_CH2, OUTPUT); 
@@ -134,7 +135,7 @@ void loop() {
     bMuxDelay = false;
     TimerMux.evaluate(false);
     dbugprint(" ");
-    dbugprint(bMuxDelay == true ? "True" : "False" );
+    dbugprint(bMuxDelay == true ? "TRUE" : "" );
     dbugprint(" ");
   }
   if(!bMuxDelay){
@@ -183,9 +184,10 @@ void loop() {
   }
   else if (i_clk == 11){
     if (act_Mux_Channel == 5){
-      Serial.print(encoderL.calc() * 10);
-      Serial.print(filtValue[1]);
-      Serial.print("  ");
+       Serial.print("  ");
+       Serial.print(sumCh1u2);
+       Serial.print(encoderL.calc());
+      //Serial.print("  ");
       
       /*bIR_LED_on = true;
       digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);  */ 
@@ -208,8 +210,8 @@ void loop() {
       #if DEBGOUT != 0
         t_lastcycl = t_now;
         t_now = millis();
-        Serial.print("  ");
-        Serial.println(t_now - t_lastcycl);
+        //Serial.print("  ");
+        //Serial.println(t_now - t_lastcycl);
       #endif
 
       i_clk=10;
@@ -303,79 +305,79 @@ void loop() {
         } 
       }        
     }
-    else{
-      if (!bMuxDelay && (act_Mux_Channel == 0 || act_Mux_Channel == 5)){
-        i_clk++; 
-      }
-    }
-    //Led Blink 
-    if (TimerBlink.evaluate(true)) {
-      if (blkFlag){
-        digitalWrite(LED_BUILTIN, LOW);
-        blkFlag=false;
-      } 
-      else{
-          digitalWrite(LED_BUILTIN, HIGH);
-          blkFlag=true;       
-      }    
-      TimerBlink.evaluate(false);  
-    } 
-    //MuxOuts 
-    #if DEBGCH == 0 || DEBGCH == 5
-      if(!bMuxDelay){
-        switch(act_Mux_Channel){
-          case 0: 
-          case 5: 
-            digitalWrite(ACT_MUX_CH1, LOW);
-            digitalWrite(ACT_MUX_CH2, LOW);
-            digitalWrite(ACT_MUX_CH3, LOW);
-            digitalWrite(ACT_MUX_CH4, LOW);
-            break;
-          case 1: 
-            digitalWrite(ACT_MUX_CH2, LOW);
-            digitalWrite(ACT_MUX_CH3, LOW);
-            digitalWrite(ACT_MUX_CH4, LOW);
-            digitalWrite(ACT_MUX_CH1, HIGH);
-            bMuxDelay = true;
-            break;
-          case 2: 
-            digitalWrite(ACT_MUX_CH1, LOW);
-            digitalWrite(ACT_MUX_CH3, LOW);
-            digitalWrite(ACT_MUX_CH4, LOW);
-            digitalWrite(ACT_MUX_CH2, HIGH);
-            bMuxDelay = true;
-            break;
-          case 3: 
-            digitalWrite(ACT_MUX_CH1, LOW);
-            digitalWrite(ACT_MUX_CH2, LOW);
-            digitalWrite(ACT_MUX_CH4, LOW);
-            digitalWrite(ACT_MUX_CH3, HIGH);
-            bMuxDelay = true;
-            break;
-          case 4: 
-            digitalWrite(ACT_MUX_CH1, LOW);
-            digitalWrite(ACT_MUX_CH2, LOW);
-            digitalWrite(ACT_MUX_CH3, LOW);
-            digitalWrite(ACT_MUX_CH4, HIGH);
-            bMuxDelay = true;
-            break;
-        }  
-      }     
-    #elif DEBGCH == 1
-      digitalWrite(ACT_MUX_CH2, LOW);
-      digitalWrite(ACT_MUX_CH1, HIGH);
-    #elif DEBGCH == 2
-      digitalWrite(ACT_MUX_CH1, LOW);
-      digitalWrite(ACT_MUX_CH2, HIGH);
-    #endif
-    dbugprint(act_Mux_Channel);
-    dbugprint(" ");
-    dbugprint(i_clk);
-    dbugprint(" ");
-    dbugprint(bMuxDelay == true ? "true" : "false" );
-    dbugprint(" ");
-    dbugprint(TimerMux.getDelay());
-    dbugprint(" ");
-    dbugprintln(TimerMux.getElapsedTime());
   }
+  else{
+    if (!bMuxDelay && (act_Mux_Channel == 0 || act_Mux_Channel == 5)){
+      i_clk++; 
+    }
+  }
+  //Led Blink 
+  if (TimerBlink.evaluate(true)) {
+    if (blkFlag){
+      digitalWrite(LED_BUILTIN, LOW);
+      blkFlag=false;
+    } 
+    else{
+        digitalWrite(LED_BUILTIN, HIGH);
+        blkFlag=true;       
+    }    
+    TimerBlink.evaluate(false);  
+  } 
+  //MuxOuts 
+  #if DEBGCH == 0 || DEBGCH == 5
+    if(!bMuxDelay){
+      switch(act_Mux_Channel){
+        case 0: 
+        case 5: 
+          digitalWrite(ACT_MUX_CH1, LOW);
+          digitalWrite(ACT_MUX_CH2, LOW);
+          digitalWrite(ACT_MUX_CH3, LOW);
+          digitalWrite(ACT_MUX_CH4, LOW);
+          break;
+        case 1: 
+          digitalWrite(ACT_MUX_CH2, LOW);
+          digitalWrite(ACT_MUX_CH3, LOW);
+          digitalWrite(ACT_MUX_CH4, LOW);
+          digitalWrite(ACT_MUX_CH1, HIGH);
+          bMuxDelay = true;
+          break;
+        case 2: 
+          digitalWrite(ACT_MUX_CH1, LOW);
+          digitalWrite(ACT_MUX_CH3, LOW);
+          digitalWrite(ACT_MUX_CH4, LOW);
+          digitalWrite(ACT_MUX_CH2, HIGH);
+          bMuxDelay = true;
+          break;
+        case 3: 
+          digitalWrite(ACT_MUX_CH1, LOW);
+          digitalWrite(ACT_MUX_CH2, LOW);
+          digitalWrite(ACT_MUX_CH4, LOW);
+          digitalWrite(ACT_MUX_CH3, HIGH);
+          bMuxDelay = true;
+          break;
+        case 4: 
+          digitalWrite(ACT_MUX_CH1, LOW);
+          digitalWrite(ACT_MUX_CH2, LOW);
+          digitalWrite(ACT_MUX_CH3, LOW);
+          digitalWrite(ACT_MUX_CH4, HIGH);
+          bMuxDelay = true;
+          break;
+      }  
+    }     
+  #elif DEBGCH == 1
+    digitalWrite(ACT_MUX_CH2, LOW);
+    digitalWrite(ACT_MUX_CH1, HIGH);
+  #elif DEBGCH == 2
+    digitalWrite(ACT_MUX_CH1, LOW);
+    digitalWrite(ACT_MUX_CH2, HIGH);
+  #endif
+  dbugprint(act_Mux_Channel);
+  dbugprint(" ");
+  dbugprint(i_clk);
+  dbugprint(" ");
+  dbugprint(bMuxDelay == true ? "true" : "false" );
+  dbugprint(" ");
+  dbugprint(TimerMux.getDelay());
+  dbugprint(" ");
+  dbugprintln(TimerMux.getElapsedTime());
 }
