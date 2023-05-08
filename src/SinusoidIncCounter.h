@@ -1,8 +1,8 @@
 class CSinIncCntr{
     private: 
-        int m_lim_up = 150, m_lim_low = 100;
+        int m_lim_up = 140, m_lim_low = 110;
         int m_lim_center = (m_lim_up + m_lim_low)/2;  
-        int m_cntDirect = 0; // count direction -1 = negative, 0 = undefinded, 1 = positive
+        int m_cntDirect = 1; // count direction -1 = negative, 0 = undefinded, 1 = positive
         bool m_ch1higher_now = false, m_ch1higher_lastcnt = false; //1 = channel 1 is higher now and at last count, this must alternate otherwise count direction changes
 
         struct m_CH{    
