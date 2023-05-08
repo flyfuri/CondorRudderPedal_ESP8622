@@ -101,7 +101,7 @@ int CSinIncCntr::calc(){
                 m_defineNextHystfields();
         }
     }
-    dbugprint(" ");
+    /*dbugprint(" ");
     dbugprint(m_cntDirect);
     dbugprint(" ");
     dbugprint(m_act_Hisfld);
@@ -112,7 +112,7 @@ int CSinIncCntr::calc(){
     dbugprint(" ");
     dbugprint(m_ch1higher_now);
     dbugprint(" ");
-    dbugprintln(m_ch1higher_lastcnt);
+    dbugprintln(m_ch1higher_lastcnt);*/
     return m_actPos;
 } 
 
