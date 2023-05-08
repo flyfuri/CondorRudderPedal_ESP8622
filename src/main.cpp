@@ -4,7 +4,7 @@
 #include <SinusoidIncCounter.h>
 
 #define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
-#define DEBGOUT -1 //debug chanel mode: 0=normal(hitire) : 1=value 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
+#define DEBGOUT 99 //debug chanel mode: 0=normal(hitire) : 1=value 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
 #define SCALEM 2 //Scalemode:  0= +/-180  1= 0..256(128 in middle) 2=unscaled
 
 #if DEBGOUT == 99
@@ -32,7 +32,7 @@ unsigned long t_lastcycl, t_now; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
 
-CFilterAnalog filterCH[5]; //1=Ch1, 2=Ch2
+ANFLTR::CFilterAnalogOverMeasures filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
 CTimer TimerInitLeft, TimerInitRigth, TimerBlink, TimerMux;
 CSinIncCntr encoderL; //encoder Left pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
@@ -77,6 +77,14 @@ void readChannel(short chNr, bool bLEDisON){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin); //A1: right pedal 772..118
       filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
+      dbugprint(" ");
+      dbugprint(analogRaw[chNr]);
+      dbugprint(" ");
+      dbugprint(filtValue[chNr]);
+      dbugprint(" ");
+      dbugprint(filterCH[chNr].getNbrMeas());
+      dbugprint(" ");
+      dbugprintln(filterCH[chNr].setgetTargetMeasures(0));
     }
   }
 }
@@ -129,15 +137,11 @@ void setup() {
 
 void loop() {
   
-    dbugprint(bMuxDelay == true ? "True" : "False" );
-    dbugprint("   ");
   if(TimerMux.evaluate(bMuxDelay)){
     bMuxDelay = false;
     TimerMux.evaluate(false);
-    dbugprint(" ");
-    dbugprint(bMuxDelay == true ? "TRUE" : "" );
-    dbugprint(" ");
   }
+
   if(!bMuxDelay){
     switch(act_Mux_Channel){
         case 1:   readChannel(1, bIR_LED_on);
@@ -184,10 +188,12 @@ void loop() {
   }
   else if (i_clk == 11){
     if (act_Mux_Channel == 5){
+      #if DEBGOUT != 99
        Serial.print("  ");
        Serial.print(sumCh1u2);
        Serial.print(encoderL.calc());
       //Serial.print("  ");
+      #endif
       
       /*bIR_LED_on = true;
       digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);  */ 
@@ -371,7 +377,7 @@ void loop() {
     digitalWrite(ACT_MUX_CH1, LOW);
     digitalWrite(ACT_MUX_CH2, HIGH);
   #endif
-  dbugprint(act_Mux_Channel);
+  /*dbugprint(act_Mux_Channel);
   dbugprint(" ");
   dbugprint(i_clk);
   dbugprint(" ");
@@ -379,5 +385,5 @@ void loop() {
   dbugprint(" ");
   dbugprint(TimerMux.getDelay());
   dbugprint(" ");
-  dbugprintln(TimerMux.getElapsedTime());
+  dbugprintln(TimerMux.getElapsedTime());*/
 }
