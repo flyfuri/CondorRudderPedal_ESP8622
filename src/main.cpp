@@ -206,13 +206,14 @@ void loop() {
         Serial.print("  ");
         Serial.print(filterA.getNbrMeas());
       #endif
-    
+
       #if DEBGOUT != 0
         t_lastcycl = t_now;
-        t_now = millis();
+        t_now = micros();
         Serial.print("  ");
         Serial.println(t_now - t_lastcycl);
       #endif
+      
 
       i_clk=10;
     
@@ -311,6 +312,7 @@ void loop() {
       i_clk++; 
     }
   }
+
   //Led Blink 
   if (TimerBlink.evaluate(true)) {
     if (blkFlag){
