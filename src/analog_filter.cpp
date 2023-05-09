@@ -15,7 +15,7 @@ CFilterAnalogBase::CFilterAnalogBase(unsigned int buffersize){ //Constructor
     m_init(buffersize);
 }
 
-void CFilterAnalogBase::m_init(unsigned int buffersize){
+void CFilterAnalogBase::m_init(unsigned int buffersize){ //Constructor
   if (buffersize < 2)
     m__bf_length = 2;
   else if (buffersize > 10000)
@@ -25,6 +25,10 @@ void CFilterAnalogBase::m_init(unsigned int buffersize){
 
   m__bf = new m__rawMeas[m__bf_length];
 
+  reset();    
+}
+
+int CFilterAnalogBase::reset(){
   for(unsigned int i = 0; i < m__bf_length; i++){
       m__bf[i].value = 0;    
       m__bf[i].tstamp = 0;
@@ -35,7 +39,12 @@ void CFilterAnalogBase::m_init(unsigned int buffersize){
   
   m__total = 0;
   m__nbr_meas = 0;
-  m__fcycdone = false;   
+  m__fcycdone = false;
+
+  m__max = 0;
+  m__min = 0;
+
+  return 0;
 }
 
 void CFilterAnalogBase::m__add(int &rawvalue, unsigned long &tstampNow){
@@ -56,6 +65,36 @@ void CFilterAnalogBase::m__remove(){
   }
 }
 
+int CFilterAnalogBase::calcMinMax (bool return_max){
+    m__max = 0;
+    m__min = 0;
+    m__rawMeas* tmpPtr = m__PntrNewest - 1;
+    if(tmpPtr - m__bf < 0)
+      tmpPtr = m__bf + m__bf_length - 1;
+
+    m__max = tmpPtr->value;
+    m__min = tmpPtr->value;
+    for(unsigned int i = 0; i < m__nbr_meas; i++){
+      m__max = tmpPtr->value > m__max? tmpPtr->value : m__max;
+      m__min = tmpPtr->value < m__min? tmpPtr->value : m__min;
+      if(--tmpPtr - m__bf < 0)
+        tmpPtr = m__bf + m__bf_length - 1;
+    }
+
+    if(return_max)
+      return m__max;
+    else
+      return m__min;
+}
+
+int CFilterAnalogBase::getMin(){
+  return m__min;
+}
+
+int CFilterAnalogBase::getMax(){
+  return m__max;
+}
+
 unsigned int CFilterAnalogBase::getNbrMeas(){
   if (m__nbr_meas >= m__bf_length -2)
     return m__nbr_meas;// * -1;
@@ -67,14 +106,10 @@ unsigned int CFilterAnalogBase::getNbrMeas(){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CFilterAnalogOverTime::CFilterAnalogOverTime(){ //Constructor
-    m__filtert_micros = 1000;
+    m__filtert_micros = 10000;
 }
 
-CFilterAnalogOverTime::CFilterAnalogOverTime(unsigned int buffersize) : CFilterAnalogBase(buffersize){ //Constructor
-    m__filtert_micros = 1000;
-}
-
-CFilterAnalogOverTime::CFilterAnalogOverTime(unsigned long targfilttime_micros){ //Constructor
+CFilterAnalogOverTime::CFilterAnalogOverTime(unsigned long targfilttime_micros) : CFilterAnalogBase(1000U){ //Constructor
     m__filtert_micros = targfilttime_micros;
 }
 
@@ -117,19 +152,15 @@ unsigned long CFilterAnalogOverTime::setgetTargfiltT_micros (unsigned long targf
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CFilterAnalogOverMeasures::CFilterAnalogOverMeasures(){ //Constructor
-    m__filterNbrMeasues = 10;
+    m__filterNbrMeasures = 10;
 }
 
 CFilterAnalogOverMeasures::CFilterAnalogOverMeasures(unsigned int buffersize) : CFilterAnalogBase(buffersize){ //Constructor
-    m__filterNbrMeasues = 10;
-}
-
-CFilterAnalogOverMeasures::CFilterAnalogOverMeasures(int targMeasNbrs){ //Constructor
-    m__filterNbrMeasues = targMeasNbrs;
+    m__filterNbrMeasures = buffersize;
 }
 
 CFilterAnalogOverMeasures::CFilterAnalogOverMeasures(unsigned int buffersize, int targMeasNbrs) : CFilterAnalogBase(buffersize){ //Constructor
-    m__filterNbrMeasues = targMeasNbrs;
+    m__filterNbrMeasures = (unsigned)targMeasNbrs > buffersize ? targMeasNbrs : (unsigned)buffersize;
 }
 
 int CFilterAnalogOverMeasures::measurement(int &measure){
@@ -142,7 +173,7 @@ int CFilterAnalogOverMeasures::measurement(int &measure){
 
   m__add(measure, tstamp);
 
-   while(m__nbr_meas >  m__filterNbrMeasues){  //remove all measures which are older than filter time
+   while(m__nbr_meas >  m__filterNbrMeasures){  //remove all measures which are older than filter time
     m__remove();
   }
 
@@ -154,8 +185,8 @@ int CFilterAnalogOverMeasures::measurement(int &measure){
 
 int CFilterAnalogOverMeasures::setgetTargetMeasures (unsigned int targMeasNbrs){
     if (targMeasNbrs > 0){
-        m__filterNbrMeasues = targMeasNbrs;
+        m__filterNbrMeasures = targMeasNbrs;
     }
-    return m__filterNbrMeasues;
+    return m__filterNbrMeasures;
 }
 }

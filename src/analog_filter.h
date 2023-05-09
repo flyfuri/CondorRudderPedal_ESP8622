@@ -12,6 +12,7 @@ class CFilterAnalogBase {  //base class
     long m__total; //total to calc average
     unsigned int m__nbr_meas; //number of measurements added in total to avarage
     bool m__fcycdone; //buffer filled up cycle done
+    int m__min, m__max; //highest and lowest value in the buffer 
 
     
     void m_init(unsigned int buffersize);
@@ -20,9 +21,13 @@ class CFilterAnalogBase {  //base class
   
   public:
     CFilterAnalogBase(); 
-    CFilterAnalogBase(unsigned int buffersize);     
-    virtual int measurement(int &measure) = 0; 
+    CFilterAnalogBase(unsigned int buffersize); 
+    int reset(); //reset fiter to 0    
+    virtual int measurement(int &measure) = 0; //adds a measurement to buffer and returns average
     unsigned int getNbrMeas();
+    int calcMinMax (bool return_max = false); //calculate maximum and minimum and return the choosen (default: false = minimum) 
+    int getMin(); //minima calculated (must be called after calcMinMax, otherwise potentially outdated)
+    int getMax(); //get maxima calculated (must be called after calcMinMax, otherwise potentially outdated)
 };
 
 
@@ -33,8 +38,7 @@ class CFilterAnalogOverTime : public CFilterAnalogBase {  //class filtering over
   
   public:
     CFilterAnalogOverTime();  
-    CFilterAnalogOverTime(unsigned int buffersize); 
-    CFilterAnalogOverTime(unsigned long targfilttime_micros); 
+    CFilterAnalogOverTime(unsigned long targfilttime_micros); //buffer size set to 1000
     CFilterAnalogOverTime(unsigned int buffersize, unsigned long targfilttime_micros);     
     int measurement(int &measure);
     unsigned long setgetTargfiltT_micros (unsigned long targfilttime_micros);
@@ -42,12 +46,11 @@ class CFilterAnalogOverTime : public CFilterAnalogBase {  //class filtering over
 
 class CFilterAnalogOverMeasures : public CFilterAnalogBase {  //class filtering over given time
   private:
-    unsigned int m__filterNbrMeasues; //number of measures to include in the results
+    unsigned int m__filterNbrMeasures; //number of measures to include in the results
   
   public:
     CFilterAnalogOverMeasures();  
-    CFilterAnalogOverMeasures(unsigned int buffersize); 
-    CFilterAnalogOverMeasures(int targMeasNbrs); 
+    CFilterAnalogOverMeasures(unsigned int buffersize); //targMeasNbrs will be set to same value
     CFilterAnalogOverMeasures(unsigned int buffersize, int targMeasNbrs);     
     int measurement(int &measure);
     int setgetTargetMeasures (unsigned int targMeasNbrs);
