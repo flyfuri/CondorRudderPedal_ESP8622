@@ -33,7 +33,8 @@ int outputRudder;
 uint8_t out8BitRudder;
 
 ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
-CTimer TimerInitLeft, TimerInitRigth, TimerBlink, TimerMux;
+TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
+TIMER::CTimerMicros TimerMux;
 CSinIncCntr encoderL; //encoder Left pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
 float tempLPedal, tempRPedal;
@@ -109,9 +110,9 @@ void setup() {
   //only arduiono: resetADC=analogRead(A0); //read A0 pinned to ground to reset ADC capacitor;
   TimerBlink.setTime(1000);
   #if DEBGCH == 5
-    TimerMux.setTime(3000);
+    TimerMux.setTime(3000000);
   #else 
-    TimerMux.setTime(1);
+    TimerMux.setTime(50);
   #endif
   Serial.begin(460800);//(115200);
 

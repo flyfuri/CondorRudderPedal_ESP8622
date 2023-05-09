@@ -1,8 +1,11 @@
+namespace TIMER{
+
 class CTimer {
-  private:
+  protected:
     unsigned long ms_at_start;
     unsigned long ms_delay;
     bool timer_started;
+    virtual unsigned long m__getTimestamp() = 0;
     
   public:
     CTimer();      
@@ -12,3 +15,21 @@ class CTimer {
     unsigned long getDelay();
     unsigned long getElapsedTime();
 };
+
+class CTimerMillis : public CTimer{
+  private:
+    unsigned long m__getTimestamp();
+
+  public:
+  CTimerMillis();
+};
+
+class CTimerMicros : public CTimer{
+  private:
+    unsigned long m__getTimestamp();
+
+  public:
+  CTimerMicros();
+};
+
+}
