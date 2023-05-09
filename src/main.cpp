@@ -114,7 +114,7 @@ void setup() {
   #else 
     TimerMux.setTime(50);
   #endif
-  Serial.begin(460800);//(115200);
+  Serial.begin(230400);//(460800);//(115200);
 
   //initialize hatire
   hat.Begin=0xAAAA; // header frame 
