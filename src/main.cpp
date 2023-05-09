@@ -184,8 +184,8 @@ void loop() {
        //Serial.print("  ");
        //Serial.print(sumCh1u2);
        //Serial.print("  ");
-       //Serial.print(encoderL.calc());
-      //Serial.print("  ");
+        Serial.print(encoderL.calc());
+        Serial.print("  ");
       #endif
       
       /*bIR_LED_on = true;
@@ -195,11 +195,12 @@ void loop() {
         Serial.print("  ");
         Serial.println(analogRaw2);
       #elif DEBGOUT == 3
-        //Serial.print(filtValue[1]);
-        //Serial.print("  ");
-        //Serial.print(filtValue[2]);
-        //Serial.print("  ");
-        //Serial.print(sumCh1u2);
+        Serial.print(filtValue[1]);
+        Serial.print("  ");
+        Serial.print(filtValue[2]);
+        Serial.print("  ");
+        Serial.print(sumCh1u2);
+        Serial.print("  ");
       #elif DEBGOUT == 4
         Serial.print(filtValue[1]);
         Serial.print("  ");
