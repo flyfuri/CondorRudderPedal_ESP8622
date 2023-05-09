@@ -4,7 +4,7 @@
 #include <SinusoidIncCounter.h>
 
 #define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
-#define DEBGOUT 99 //debug chanel mode: 0=normal(hitire) : 1=value 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
+#define DEBGOUT 3 //debug chanel mode: 0=normal(hitire) : 1=value 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
 #define SCALEM 2 //Scalemode:  0= +/-180  1= 0..256(128 in middle) 2=unscaled
 
 #if DEBGOUT == 99
@@ -32,7 +32,7 @@ unsigned long t_lastcycl, t_now; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
 
-ANFLTR::CFilterAnalogOverMeasures filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
+ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
 CTimer TimerInitLeft, TimerInitRigth, TimerBlink, TimerMux;
 CSinIncCntr encoderL; //encoder Left pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
@@ -77,14 +77,6 @@ void readChannel(short chNr, bool bLEDisON){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin); //A1: right pedal 772..118
       filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
-      dbugprint(" ");
-      dbugprint(analogRaw[chNr]);
-      dbugprint(" ");
-      dbugprint(filtValue[chNr]);
-      dbugprint(" ");
-      dbugprint(filterCH[chNr].getNbrMeas());
-      dbugprint(" ");
-      dbugprintln(filterCH[chNr].setgetTargetMeasures(0));
     }
   }
 }
@@ -189,9 +181,10 @@ void loop() {
   else if (i_clk == 11){
     if (act_Mux_Channel == 5){
       #if DEBGOUT != 99
-       Serial.print("  ");
-       Serial.print(sumCh1u2);
-       Serial.print(encoderL.calc());
+       //Serial.print("  ");
+       //Serial.print(sumCh1u2);
+       //Serial.print("  ");
+       //Serial.print(encoderL.calc());
       //Serial.print("  ");
       #endif
       
@@ -202,11 +195,11 @@ void loop() {
         Serial.print("  ");
         Serial.println(analogRaw2);
       #elif DEBGOUT == 3
-        Serial.print(filtValue[1]);
-        Serial.print("  ");
-        Serial.print(filtValue[2]);
-        Serial.print("  ");
-        Serial.print(sumCh1u2);
+        //Serial.print(filtValue[1]);
+        //Serial.print("  ");
+        //Serial.print(filtValue[2]);
+        //Serial.print("  ");
+        //Serial.print(sumCh1u2);
       #elif DEBGOUT == 4
         Serial.print(filtValue[1]);
         Serial.print("  ");
@@ -216,8 +209,8 @@ void loop() {
       #if DEBGOUT != 0
         t_lastcycl = t_now;
         t_now = millis();
-        //Serial.print("  ");
-        //Serial.println(t_now - t_lastcycl);
+        Serial.print("  ");
+        Serial.println(t_now - t_lastcycl);
       #endif
 
       i_clk=10;
