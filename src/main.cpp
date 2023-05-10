@@ -34,12 +34,12 @@ uint8_t out8BitRudder;
 
 ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
-TIMER::CTimerMicros TimerMux;
+TIMER::CTimerMicros TimerMux, TimerIRonOff;
 CSinIncCntr encoderL; //encoder Left pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
 float tempLPedal, tempRPedal;
 bool tLres, tRres, blkFlag; 
-bool bMuxDelay; //wait for mux delay
+bool bMuxDelay, bIRonoffDelay; //wait for mux delay
 bool bIR_LED_on; //IR LED is on
 
 const int analogInPin = A0;  // ESP8266 Analog Pin ADC0 = A0
@@ -92,6 +92,7 @@ void setup() {
   i_clk=0;
   sumCh1u2=0;
   bMuxDelay = false;
+  bIR_LED_on = false;
   encoderL.setTo(0);
   //analogReference(DEFAULT);
   pinMode(ACT_MUX_CH1, OUTPUT); 
@@ -114,6 +115,7 @@ void setup() {
   #else 
     TimerMux.setTime(20);
   #endif
+  TimerIRonOff.setTime(50);
   Serial.begin(230400);//(460800);//(115200);
 
   //initialize hatire
@@ -134,51 +136,53 @@ void loop() {
     bMuxDelay = false;
     TimerMux.evaluate(false);
   }
+  if(TimerIRonOff.evaluate(bIRonoffDelay)){
+    bIRonoffDelay = false;
+    TimerIRonOff.evaluate(false);
+  }
 
-  if(!bMuxDelay){
+  if(!bMuxDelay && !bIRonoffDelay){
     switch(act_Mux_Channel){
-        case 1:   readChannel(1, bIR_LED_on);
+        case 1:   procDayLightFilter(1, bIR_LED_on);
                   act_Mux_Channel = 2;
                   break;
-        case 2:   readChannel(2, bIR_LED_on);
-                  sumCh1u2 = filtValue[1] + filtValue[2];
+        case 2:   procDayLightFilter(4, bIR_LED_on);
                   act_Mux_Channel = 3;
                   break;
-        case 3:   readChannel(3, bIR_LED_on);
+        case 3:   procDayLightFilter(3, bIR_LED_on);
                   act_Mux_Channel = 4;
                   break;
-        case 4:   readChannel(4, bIR_LED_on);
+        case 4:   procDayLightFilter(2, bIR_LED_on);
+                  sumCh1u2 = filtValue[1] + filtValue[2];
                   act_Mux_Channel = 5;
                   break;
     }
   }
   if(i_clk == 0) {
-      bIR_LED_on = true;
+      bIR_LED_on = false;
       digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
-      act_Mux_Channel = 0;
       bMuxDelay = false;
-      i_clk++;
+      bIRonoffDelay = true;
+      act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
+      i_clk = 10;
   } 
-  /*else if (i_clk == 10) {
-      act_Mux_Channel = 1;  //trigger 1 measure for all channels
-        i_clk++;
-  }
-  else if (i_clk == 11){
+  else if (i_clk == 10){
       if (act_Mux_Channel == 5){
-        i_clk++;
+        bIR_LED_on = true;
+        digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
+        bIRonoffDelay = true;
+        act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
+        i_clk=20;
       }
   } 
-  else if (i_clk == 10) {
-    bIR_LED_on = true;
-    digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
-    i_clk++;
-  } */
-  else if (i_clk == 10){ 
-      act_Mux_Channel = 1; //trigger 1 measure for all channels
-      i_clk++;
-  }
-  else if (i_clk == 11){
+  else if (i_clk == 20){
     if (act_Mux_Channel == 5){
+      bIR_LED_on = false;
+      digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
+      bMuxDelay = false;
+      bIRonoffDelay = true;
+      act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
+      i_clk = 10;
       #if DEBGOUT != 99
        //Serial.print("  ");
        //Serial.print(sumCh1u2);
@@ -346,9 +350,9 @@ void loop() {
           break;
         case 2: 
           digitalWrite(ACT_MUX_CH1, LOW);
+          digitalWrite(ACT_MUX_CH2, LOW);
           digitalWrite(ACT_MUX_CH3, LOW);
-          digitalWrite(ACT_MUX_CH4, LOW);
-          digitalWrite(ACT_MUX_CH2, HIGH);
+          digitalWrite(ACT_MUX_CH4, HIGH);
           bMuxDelay = true;
           break;
         case 3: 
@@ -360,9 +364,9 @@ void loop() {
           break;
         case 4: 
           digitalWrite(ACT_MUX_CH1, LOW);
-          digitalWrite(ACT_MUX_CH2, LOW);
+          digitalWrite(ACT_MUX_CH4, LOW);
           digitalWrite(ACT_MUX_CH3, LOW);
-          digitalWrite(ACT_MUX_CH4, HIGH);
+          digitalWrite(ACT_MUX_CH2, HIGH);
           bMuxDelay = true;
           break;
       }  
