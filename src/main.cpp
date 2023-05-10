@@ -4,7 +4,7 @@
 #include <SinusoidIncCounter.h>
 
 #define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
-#define DEBGOUT 3 //debug chanel mode: 0=normal(hitire) : 1=value 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
+#define DEBGOUT 10 //debug chanel mode: 0=normal(hitire) : 1=value 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
 #define SCALEM 2 //Scalemode:  0= +/-180  1= 0..256(128 in middle) 2=unscaled
 
 #if DEBGOUT == 99
@@ -112,7 +112,7 @@ void setup() {
   #if DEBGCH == 5
     TimerMux.setTime(3000000);
   #else 
-    TimerMux.setTime(50);
+    TimerMux.setTime(20);
   #endif
   Serial.begin(230400);//(460800);//(115200);
 
@@ -138,11 +138,9 @@ void loop() {
   if(!bMuxDelay){
     switch(act_Mux_Channel){
         case 1:   readChannel(1, bIR_LED_on);
-                  encoderL.addmeas(1,(int)filtValue[1]);
                   act_Mux_Channel = 2;
                   break;
         case 2:   readChannel(2, bIR_LED_on);
-                  encoderL.addmeas(2,(int)filtValue[2]);
                   sumCh1u2 = filtValue[1] + filtValue[2];
                   act_Mux_Channel = 3;
                   break;
@@ -184,8 +182,8 @@ void loop() {
       #if DEBGOUT != 99
        //Serial.print("  ");
        //Serial.print(sumCh1u2);
-       //Serial.print("  ");
-        Serial.print(encoderL.calc());
+        Serial.print("  ");
+        Serial.print(encoderL.calc((int)filtValue[1], (int)filtValue[2]));
         Serial.print("  ");
       #endif
       
@@ -201,6 +199,8 @@ void loop() {
         Serial.print(filtValue[2]);
         Serial.print("  ");
         Serial.print(sumCh1u2);
+        Serial.print("  ");
+        Serial.print(filtValue[1] -filtValue[2]);
         Serial.print("  ");
       #elif DEBGOUT == 4
         Serial.print(filtValue[1]);
