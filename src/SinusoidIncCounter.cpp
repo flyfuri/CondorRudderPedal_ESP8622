@@ -14,112 +14,73 @@
 #endif
 
 CSinIncCntr::CSinIncCntr(){
-    for (int i = 0; i > 2; i++){
-        m_measures[i].prev=0;
-        m_measures[i].recent=0;
-        m_measures[i].slope=0;
-    }
-}
-
-void CSinIncCntr::m_count(){
-    if (m_ch1higher_lastcnt == m_ch1higher_now){
-        m_cntDirect = m_cntDirect * -1;
-    }
-    m_actPos += m_cntDirect;
-}
-
-void CSinIncCntr::m_defineNextHystfields(){
-    if(m_act_Hisfld == m_sumHysteresisField::HSF_MIDH){
-                m_nxtHistfld1 = m_sumHysteresisField::HSF_LOW;
-                m_nxtHistfld2 = m_sumHysteresisField::HSF_LOW;
-    }
-    else if(m_act_Hisfld == m_sumHysteresisField::HSF_MIDL){
-                m_nxtHistfld1 = m_sumHysteresisField::HSF_UP;
-                m_nxtHistfld2 = m_sumHysteresisField::HSF_UP;
-    }
-    else if(m_act_Hisfld == m_sumHysteresisField::HSF_LOW){
-                m_nxtHistfld1 = m_sumHysteresisField::HSF_MIDH;
-                m_nxtHistfld2 = m_sumHysteresisField::HSF_UP;
-    }
-    else if(m_act_Hisfld == m_sumHysteresisField::HSF_UP){
-                m_nxtHistfld1 = m_sumHysteresisField::HSF_MIDL;
-                m_nxtHistfld2 = m_sumHysteresisField::HSF_LOW;
-    }
-}
-
-
-void CSinIncCntr::addmeas (int chNr, int value){
-    if(chNr == 1 || chNr == 2){
-        m_measures[chNr].prev = m_measures[chNr].recent;
-        m_measures[chNr].recent = value;
-    }
-} 
-
-int CSinIncCntr::calc(){
-    //create sum curve points
-    m_measures[0].prev = m_measures[1].prev + m_measures[2].prev;
-    m_measures[0].recent = m_measures[1].recent + m_measures[2].recent;
     
-    //determine in which hysteresis field the sum curve is
-    if (m_measures[0].recent >= m_lim_center && m_measures[0].recent < m_lim_up ){
-        m_act_Hisfld = m_sumHysteresisField::HSF_MIDH;
-    }
-    else if (m_measures[0].recent >= m_lim_up ){
-        m_act_Hisfld = m_sumHysteresisField::HSF_UP;
-    }
-    else if (m_measures[0].recent < m_lim_center && m_measures[0].recent >= m_lim_low ){
-        m_act_Hisfld = m_sumHysteresisField::HSF_MIDL;
-    }
-    else if (m_measures[0].recent < m_lim_low ){
-        m_act_Hisfld = m_sumHysteresisField::HSF_LOW;
+}
+
+
+
+int CSinIncCntr::calc(int actCh1, int actCh2){
+    //calculate sum of both channels the help determen counting direction
+    m__sum = actCh1 + actCh2;
+
+    //calculate difference of the channels to see where they cross (nullpoint of difference)
+    m__sub = actCh1 - actCh2;
+
+    //init differende half at beginning
+    if(m__actSubStatus == 0){
+        if(m__sub >=0){
+            m__actSubStatus = 1;
+        }
+        else{
+            m__actSubStatus = -1;
+        } 
     }
 
-    //set next hysteresisfields if undefiened (ANY) yet
-    if (m_nxtHistfld1 == m_sumHysteresisField::HSF_ANY || m_nxtHistfld2 == m_sumHysteresisField::HSF_ANY){
-        m_defineNextHystfields();
-    } 
-
-    //check (hysteresis) and counting operations if needed
-    if (m_act_Hisfld == m_nxtHistfld1 || m_act_Hisfld == m_nxtHistfld2){
-        for (int i = 0; i > 2; i++){
-            m_measures[i].slope = m_measures[i].recent - m_measures[i].prev;    //   y-axis (time) is unknown and difference is taken as 1 under the followint assumption:
-                                                                                //   - all channels have the same time between the measurements
-                                                                                //   - the slope does not need to be an absolute value as it is only used to compare relativly
+    if(m__actSubStatus > 0 && m__sub < 0){ //when difference is crossing Nullline from positive to negative
+        if(m__sum >= m__sumMidLine)
+        {
+            m__actPos--;
+        }
+        else
+        {
+            m__actPos++;
         }
         
-        // at hysteresespoint check which channel is higher 
-        if (m_measures[1].recent - m_measures[2].recent > 2 && m_measures[1].prev - m_measures[2].prev > 2){
-                m_ch1higher_lastcnt = m_ch1higher_now;
-                m_ch1higher_now = true;  
-                m_count();
-                m_defineNextHystfields();  
+        m__actSubStatus = -1;
+    }  
+    else if(m__actSubStatus < 0 && m__sub >= 0){//when difference is crossing Nullline from negative to positive
+        if(m__sum >= m__sumMidLine)
+        {
+            m__actPos++;
         }
-        else if (m_measures[2].recent - m_measures[1].recent > 2 && m_measures[2].prev - m_measures[1].prev > 2){
-                m_ch1higher_lastcnt = m_ch1higher_now;
-                m_ch1higher_now = false; 
-                m_count();
-                m_defineNextHystfields();
+        else
+        {
+            m__actPos--;
         }
-    }
-    /*dbugprint(" ");
-    dbugprint(m_cntDirect);
+        
+        m__actSubStatus = 1;
+    }      
     dbugprint(" ");
-    dbugprint(m_act_Hisfld);
+    dbugprint(m__actPos);      
     dbugprint(" ");
-    dbugprint(m_nxtHistfld1);
+    dbugprint(actCh1);     
     dbugprint(" ");
-    dbugprint(m_nxtHistfld2);
+    dbugprint(actCh2);    
     dbugprint(" ");
-    dbugprint(m_ch1higher_now);
+    dbugprint(m__sum);
     dbugprint(" ");
-    dbugprintln(m_ch1higher_lastcnt);*/
-    return m_actPos;
+    dbugprint(m__sub);
+    dbugprint(" ");
+    dbugprint(m__actSubStatus);
+    dbugprint(" ");
+
+    return m__actPos;
 } 
 
 int CSinIncCntr::read(){
-    return m_actPos;
+    return m__actPos;
 } 
 
 int CSinIncCntr::setTo(int value){
-    return m_actPos = value;
+    return m__actPos = value;
 } 
