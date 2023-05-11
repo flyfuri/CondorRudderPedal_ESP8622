@@ -3,6 +3,7 @@
 
 #define NBR_TEETH_ON_RACK 10 //number of theeth on rail
 #define NBR_TO_AVR_IND_TOOTH 3 //number to average individual tooth 
+#define INTPOLRES 10 //resulution of interpolation between halfteeth
 
 class CSinIncCntr{
     private: 
@@ -29,11 +30,13 @@ class CSinIncCntr{
 
         
 
-        int m__actHalfTooth;  //endresult
+        int m__actHalfTooth;  
+        int m__actPos; //endresult
 
         int m__addCalcMinAv(int halftooth, int valueToAdd); //add and calc average Min for given half-tooth
         int m__addCalcMaxAv(int halftooth, int valueToAdd); //add and calc average Min for given half-tooth  
-        int m__calcSumMid(); //add actual m_sum and calculate initial mid between min and max (if they differ a minimum amount and if min 10 measures were taken)
+        int m__calcInitialSumMid(); //add actual m_sum and calculate initial mid between min and max (if they differ a minimum amount and if min 10 measures were taken)
+        int m__SinInterpolMinMax(int min, int max, int actval, int resolution);
         int m__procedure_subRising_sumMax(); //one of 4 cases channel curves cross
         int m__procedure_subRising_sumMin(); //one of 4 cases channel curves cross
         int m__procedure_subFalling_sumMax(); //one of 4 cases channel curves cross
