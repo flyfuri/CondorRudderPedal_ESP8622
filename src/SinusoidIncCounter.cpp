@@ -4,6 +4,8 @@
 #include "math.h"
 #include "Arduino.h"
 
+#define _USE_MATH_DEFINES
+
 #define DEBGOUT 99
 
 #if DEBGOUT == 99
@@ -26,12 +28,12 @@ CSinIncCntr::CSinIncCntr(){
     }
 }
 
-int CSinIncCntr::m__calcSumMid(){
-    if(m__sumMidLine = 0){ //initial search for middle line of summary curve
+int CSinIncCntr::m__calcInitialSumMid(){
+    if(m__sumMidLine == 0){ //initial search for middle line of summary curve
         LastSumMinMaxs.measurement(m__sum);
         int tempMidLine = (LastSumMinMaxs.calcMinMax(true) + LastSumMinMaxs.getMin()) / 2;
         if (LastSumMinMaxs.getMax() - LastSumMinMaxs.getMin() > 60 
-        && LastSumMinMaxs.getNbrMeas() >= 10
+        && LastSumMinMaxs.getNbrMeas() >= 9
         && std::abs(LastSumMinMaxs.getAverage() - tempMidLine) < 50){
             return m__sumMidLine = tempMidLine;
         }
@@ -75,6 +77,13 @@ int CSinIncCntr::m__addCalcMaxAv(int halftooth, int valueToAdd){ //add and calc 
     return teethrack[tempTeethindex].maxAv = temptotal / NBR_TO_AVR_IND_TOOTH;
 }
 
+int CSinIncCntr::m__SinInterpolMinMax(int min, int max, int actval, int resolution){
+    int tmpmax = max - min;
+    int tmpact = actval -min; 
+    float tmpresult = (resolution/(PI/2)) * sin(((PI/2)/tmpmax) * actval);
+    return (int)(tmpresult * 1000) % 1000 >= 500 ? (int)tmpresult + 1 : (int)tmpresult;  //take 3 digits after period to round
+}
+
 int CSinIncCntr::calc(int actCh1, int actCh2){
     //calculate sum of both channels the help determen counting direction
     m__sum = actCh1 + actCh2;
@@ -94,31 +103,49 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
     }
 
     if(m__actSubStatus > 0 && m__sub < 0){ //when difference is crossing Null-line from positive to negative
-        if (m__calcSumMid() != 0){
-            if(m__sum >= m__sumMidLine) //channel lines are crossing each oder with summary at MAX
+        if (m__calcInitialSumMid() != 0){
+            if(m__sum >= m__sumMidLine) //sub FALLING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MAX)
             {
                 m__actHalfTooth--;
+                int tempMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
+                int tempMin = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
+                int tempIntpol = m__SinInterpolMinMax(tempMax, tempMin, m__sum, INTPOLRES);
+                m__actPos = m__actHalfTooth * INTPOLRES + tempIntpol;
             }
-            else //channel lines are crossing each oder with summary at MIN
+            else //sub FALLING sum at MIN (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MIN)
             {
                 m__actHalfTooth++;
+                int tempMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
+                int tempMax = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
+                int tempIntpol = m__SinInterpolMinMax(tempMax, tempMin, m__sum, INTPOLRES);
+                m__actPos = m__actHalfTooth * INTPOLRES + tempIntpol;
             } 
         }
         m__actSubStatus = -1;  //always to do when sub crossing zero line!
     }  
     else if(m__actSubStatus < 0 && m__sub >= 0){//when difference is crossing Null-line from negative to positive
-        if (m__calcSumMid() != 0){
-            if(m__sum >= m__sumMidLine)//channel lines are crossing each oder with summary at MAX
+        if (m__calcInitialSumMid() != 0){
+            if(m__sum >= m__sumMidLine)//sub RISING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MAX)
             {
                 m__actHalfTooth++;
+                int tempMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
+                int tempMin = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
+                int tempIntpol = m__SinInterpolMinMax(tempMax, tempMin, m__sum, INTPOLRES);
+                m__actPos = m__actHalfTooth * INTPOLRES + 1 - tempIntpol;
             }
-            else //channel lines are crossing each oder with summary at MIN
+            else //sub RISING sum at MIN  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MIN)
             {
                 m__actHalfTooth--;
+                int tempMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
+                int tempMax = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
+                int tempIntpol = m__SinInterpolMinMax(tempMax, tempMin, m__sum, INTPOLRES);
+                m__actPos = m__actHalfTooth * INTPOLRES + 1 - tempIntpol;
             }
         }
         m__actSubStatus = 1; //always to do when sub crossing zero line!
-    }      
+    }    
+    dbugprint(m__actPos);      
+    dbugprint(" ");
     dbugprint(" ");
     dbugprint(m__actHalfTooth);      
     dbugprint(" ");
