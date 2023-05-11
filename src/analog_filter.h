@@ -1,3 +1,4 @@
+#pragma once
 namespace ANFLTR{
 class CFilterAnalogBase {  //base class
   protected:
@@ -18,12 +19,14 @@ class CFilterAnalogBase {  //base class
     void m_init(unsigned int buffersize);
     void m__add(int &rawvalue, unsigned long &tstampNow); //add one measurement to total and buffer
     void m__remove(); //remove a expired measurements from total and buffer
+    int m__average(); //calculate average and round
   
   public:
     CFilterAnalogBase(); 
     CFilterAnalogBase(unsigned int buffersize); 
     int reset(); //reset fiter to 0    
-    virtual int measurement(int &measure) = 0; //adds a measurement to buffer and returns average
+    virtual int measurement(int &measureToAdd) = 0; //adds a measurement to buffer and returns average
+    int getAverage(); //just average
     unsigned int getNbrMeas();
     int calcMinMax (bool return_max = false); //calculate maximum and minimum and return the choosen (default: false = minimum) 
     int getMin(); //minima calculated (must be called after calcMinMax, otherwise potentially outdated)
@@ -40,7 +43,7 @@ class CFilterAnalogOverTime : public CFilterAnalogBase {  //class filtering over
     CFilterAnalogOverTime();  
     CFilterAnalogOverTime(unsigned long targfilttime_micros); //buffer size set to 1000
     CFilterAnalogOverTime(unsigned int buffersize, unsigned long targfilttime_micros);     
-    int measurement(int &measure);
+    int measurement(int &measureToAdd);
     unsigned long setgetTargfiltT_micros (unsigned long targfilttime_micros);
 };
 
@@ -52,7 +55,7 @@ class CFilterAnalogOverMeasures : public CFilterAnalogBase {  //class filtering 
     CFilterAnalogOverMeasures();  
     CFilterAnalogOverMeasures(unsigned int buffersize); //targMeasNbrs will be set to same value
     CFilterAnalogOverMeasures(unsigned int buffersize, int targMeasNbrs);     
-    int measurement(int &measure);
+    int measurement(int &measureToAdd);
     int setgetTargetMeasures (unsigned int targMeasNbrs);
 };
 }
