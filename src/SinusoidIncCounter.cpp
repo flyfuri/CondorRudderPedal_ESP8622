@@ -78,9 +78,10 @@ int CSinIncCntr::m__addCalcMaxAv(int halftooth, int valueToAdd){ //add and calc 
 }
 
 int CSinIncCntr::m__SinInterpolMinMax(int min, int max, int actval, int resolution){
-    int tmpmax = max - min;
-    int tmpact = actval -min; 
-    float tmpresult = (resolution/(PI/2)) * sin(((PI/2)/tmpmax) * actval);
+    float tmpmax = max - min;
+    float tmpact = actval -min; 
+    float tmpactval = tmpact > tmpmax ? tmpmax : tmpact;
+    float tmpresult = (resolution/(PI/2)) * sin(((PI/2)/tmpmax) * tmpactval);
     return (int)(tmpresult * 1000) % 1000 >= 500 ? (int)tmpresult + 1 : (int)tmpresult;  //take 3 digits after period to round
 }
 
@@ -107,19 +108,16 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
             if(m__sum >= m__sumMidLine) //sub FALLING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MAX)
             {
                 m__actHalfTooth--;
-                int tempMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
-                int tempMin = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
-                int tempIntpol = m__SinInterpolMinMax(tempMax, tempMin, m__sum, INTPOLRES);
-                m__actPos = m__actHalfTooth * INTPOLRES + tempIntpol;
+                m__intpolMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
+                m__intpolMin = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
             }
             else //sub FALLING sum at MIN (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MIN)
             {
                 m__actHalfTooth++;
-                int tempMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
-                int tempMax = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
-                int tempIntpol = m__SinInterpolMinMax(tempMax, tempMin, m__sum, INTPOLRES);
-                m__actPos = m__actHalfTooth * INTPOLRES + tempIntpol;
+                m__intpolMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
+                m__intpolMax = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
             } 
+            m__sumOnLastCrossing = m__sum;
         }
         m__actSubStatus = -1;  //always to do when sub crossing zero line!
     }  
@@ -128,45 +126,58 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
             if(m__sum >= m__sumMidLine)//sub RISING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MAX)
             {
                 m__actHalfTooth++;
-                int tempMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
-                int tempMin = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
-                int tempIntpol = m__SinInterpolMinMax(tempMax, tempMin, m__sum, INTPOLRES);
-                m__actPos = m__actHalfTooth * INTPOLRES + 1 - tempIntpol;
+                m__intpolMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
+                m__intpolMin = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
             }
             else //sub RISING sum at MIN  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MIN)
             {
                 m__actHalfTooth--;
-                int tempMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
-                int tempMax = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
-                int tempIntpol = m__SinInterpolMinMax(tempMax, tempMin, m__sum, INTPOLRES);
-                m__actPos = m__actHalfTooth * INTPOLRES + 1 - tempIntpol;
+                m__intpolMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
+                m__intpolMax = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
             }
+            m__sumOnLastCrossing = m__sum;
         }
         m__actSubStatus = 1; //always to do when sub crossing zero line!
-    }    
+    }   
+    if (m__calcInitialSumMid() != 0){
+        int tempIntpol = m__SinInterpolMinMax(m__intpolMax, m__intpolMin, m__sum, INTPOLRES);
+        if (m__actSubStatus < 0){
+            m__actPos = m__actHalfTooth * INTPOLRES + tempIntpol;
+        }
+        else if (m__actSubStatus > 0){
+            m__actPos = m__actHalfTooth * INTPOLRES + 1 - tempIntpol;
+        }
+        else{
+            m__actPos = m__actHalfTooth * INTPOLRES;
+        }
+
+    }
+
+
     dbugprint(m__actPos);      
-    dbugprint(" ");
-    dbugprint(" ");
+    dbugprint(";");
     dbugprint(m__actHalfTooth);      
-    dbugprint(" ");
+    dbugprint(";");
     dbugprint(actCh1);     
-    dbugprint(" ");
+    dbugprint(";");
     dbugprint(actCh2);    
-    dbugprint(" ");
+    dbugprint(";");
     dbugprint(m__sum);
-    dbugprint(" ");
+    dbugprint(";");
     dbugprint(m__sub);
-    dbugprint(" ");
+    dbugprint(";");
     dbugprint(m__sumMidLine);
-    dbugprint(" ");
-    //dbugprint(LastSumMinMaxs.getAverage());
-    dbugprint(" ");
+    dbugprint(";");
+    dbugprint(m__sumOnLastCrossing);
+    dbugprint(";");
+    dbugprint(LastSumMinMaxs.getAverage());
+    dbugprint(";");
     dbugprint(LastSumMinMaxs.getMax());
-    dbugprint(" ");
+    dbugprint(";");
     dbugprint(LastSumMinMaxs.getMin());
-    dbugprint(" ");
+    dbugprint(";");
     dbugprint(LastSumMinMaxs.getNbrMeas());
-    dbugprint(" ");
+    dbugprint(";");
 
     return m__actHalfTooth;
 } 
