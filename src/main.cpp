@@ -95,6 +95,7 @@ void setup() {
   bIR_LED_on = false;
   encoderL.setTo(0);
   //analogReference(DEFAULT);
+  pinMode(A0, INPUT);
   pinMode(ACT_MUX_CH1, OUTPUT); 
   pinMode(ACT_MUX_CH2, OUTPUT); 
   pinMode(ACT_MUX_CH3, OUTPUT); 
@@ -116,7 +117,7 @@ void setup() {
     TimerMux.setTime(20);
   #endif
   TimerIRonOff.setTime(50);
-  Serial.begin(230400);//(460800);//(115200);
+  Serial.begin(256000);//(230400);//(460800);//(115200);
 
   //initialize hatire
   hat.Begin=0xAAAA; // header frame 

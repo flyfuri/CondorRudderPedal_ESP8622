@@ -10,6 +10,7 @@ class CSinIncCntr{
         //used for basic counting the theeth (counts twice per tooth on each crossing point of the 2 channel curves):
         int m__sum;  //summary of both channels
         int m__sub;   //CH1 - CH2
+        int m__sumOnLastCrossing; //point on sum curve when channel curves crosse last time
         int m__sumMidLine = 0; //approx middle line of summary
         short m__actSubStatus = 0;  //wich half of the difference curve we're now (-1=negative, 0 undefined(at beginning), 1=positive)
         
@@ -28,7 +29,8 @@ class CSinIncCntr{
             int maxAv;
         }teethrack[NBR_TEETH_ON_RACK  * 2]; //learned behaviour of teethrack. Array double as long and start in middle of array since we don't know where we start at init
 
-        
+        int m__intpolMax;  //actual Max used for interpolation
+        int m__intpolMin;    //actual Min used for interpolation
 
         int m__actHalfTooth;  
         int m__actPos; //endresult
