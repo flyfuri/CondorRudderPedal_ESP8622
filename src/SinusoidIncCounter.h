@@ -4,6 +4,7 @@
 #define NBR_TEETH_ON_RACK 10 //number of theeth on rail
 #define NBR_TO_AVR_IND_TOOTH 3 //number to average individual tooth 
 #define INTPOLRES 10 //resulution of interpolation between halfteeth
+#define INIT_MIN_DIST_SUM_MINMAX 80; //initial minimal dist
 
 class CSinIncCntr{
     private: 
@@ -12,13 +13,13 @@ class CSinIncCntr{
         int m__sub;   //CH1 - CH2
         int m__sumOnLastCrossing; //point on sum curve when channel curves crosse last time
         int m__sumMidLine = 0; //approx middle line of summary
-        short m__actSubStatus = 0;  //wich half of the difference curve we're now (-1=negative, 0 undefined(at beginning), 1=positive)
+        short m__actStatusSUB = 0;  //wich half of the difference curve we're now (-1=negative, 0 undefined(at beginning), 1=positive)
+        short m__actStatusSUM = 0;  //wich half of the summary curve we're now (-1=MIN, 0 undefined(at beginning), 1=MAX)
         
         // used to find the approx. middle line of summary curve
-        ANFLTR::CFilterAnalogOverMeasures* InitialSumCurveMinMaxs;// this object is now dynamically created and distroyed after init: ANFLTR::CFilterAnalogOverMeasures InitialSumCurveMinMaxs{10U, 10}; //to find initial mid line
-        ANFLTR::CFilterAnalogOverMeasures* SumCurveLastMaxs;
-        ANFLTR::CFilterAnalogOverMeasures* SumCurveLastMins;
-        bool m__initialSumMidFound; //initial sum middle line has been found
+        //ANFLTR::CFilterAnalogOverMeasures* SumCurveLastMaxs;
+        ANFLTR::CFilterAnalogOverMeasures SumCurveLastMins;
+        //bool m__initialSumMidFound; //initial sum middle line has been found
 
         //used for interpolation beetween flank counts to increse resolution        
         struct TeethRack {
