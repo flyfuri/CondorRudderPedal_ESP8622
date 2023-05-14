@@ -15,6 +15,10 @@ CFilterAnalogBase::CFilterAnalogBase(unsigned int buffersize){ //Constructor
     m_init(buffersize);
 }
 
+CFilterAnalogBase::~CFilterAnalogBase(){
+  delete m__bf;
+}
+
 void CFilterAnalogBase::m_init(unsigned int buffersize){ //Constructor
   if (buffersize < 2)
     m__bf_length = 2;
