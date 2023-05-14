@@ -15,7 +15,9 @@ class CSinIncCntr{
         short m__actSubStatus = 0;  //wich half of the difference curve we're now (-1=negative, 0 undefined(at beginning), 1=positive)
         
         // used to find the approx. middle line of summary curve
-        ANFLTR::CFilterAnalogOverMeasures LastSumMinMaxs{10U, 10}; //to find initial mid line
+        ANFLTR::CFilterAnalogOverMeasures* InitialSumCurveMinMaxs;// this object is now dynamically created and distroyed after init: ANFLTR::CFilterAnalogOverMeasures InitialSumCurveMinMaxs{10U, 10}; //to find initial mid line
+        ANFLTR::CFilterAnalogOverMeasures* SumCurveLastMaxs;
+        ANFLTR::CFilterAnalogOverMeasures* SumCurveLastMins;
         bool m__initialSumMidFound; //initial sum middle line has been found
 
         //used for interpolation beetween flank counts to increse resolution        
@@ -29,20 +31,18 @@ class CSinIncCntr{
             int maxAv;
         }teethrack[NBR_TEETH_ON_RACK  * 2]; //learned behaviour of teethrack. Array double as long and start in middle of array since we don't know where we start at init
 
+        int m__actIndexTeethrack; 
         int m__intpolMax;  //actual Max used for interpolation
         int m__intpolMin;    //actual Min used for interpolation
 
         int m__actHalfTooth;  
         int m__actPos; //endresult
 
+        bool m__calcActIndTeetrack(); //calculate actual index to find learned halfteeth min max for interpolation (returns false when out of range)
         int m__addCalcMinAv(int halftooth, int valueToAdd); //add and calc average Min for given half-tooth
         int m__addCalcMaxAv(int halftooth, int valueToAdd); //add and calc average Min for given half-tooth  
-        int m__calcInitialSumMid(); //add actual m_sum and calculate initial mid between min and max (if they differ a minimum amount and if min 10 measures were taken)
+        int m__calcSumMid(); //add actual m_sum and calculate initial mid between min and max (if they differ a minimum amount and if min 10 measures were taken)
         int m__SinInterpolMinMax(int min, int max, int actval, int resolution);
-        int m__procedure_subRising_sumMax(); //one of 4 cases channel curves cross
-        int m__procedure_subRising_sumMin(); //one of 4 cases channel curves cross
-        int m__procedure_subFalling_sumMax(); //one of 4 cases channel curves cross
-        int m__procedure_subFalling_sumMin(); //one of 4 cases channel curves cross
         
     public:
         CSinIncCntr();  

@@ -24,6 +24,7 @@ class CFilterAnalogBase {  //base class
   public:
     CFilterAnalogBase(); 
     CFilterAnalogBase(unsigned int buffersize); 
+    virtual ~CFilterAnalogBase();
     int reset(); //reset fiter to 0    
     virtual int measurement(int &measureToAdd) = 0; //adds a measurement to buffer and returns average
     int getAverage(); //just average

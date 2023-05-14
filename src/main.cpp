@@ -187,6 +187,7 @@ void loop() {
       #if DEBGOUT != 99
        //Serial.print("  ");
        //Serial.print(sumCh1u2);
+        
         Serial.print("  ");
         Serial.print(encoderL.calc((int)filtValue[1], (int)filtValue[2]));
         Serial.print("  ");
