@@ -70,7 +70,10 @@ void CFilterAnalogBase::m__remove(){
 }
 
 int CFilterAnalogBase::m__average(){
-  if ((m__total * 1000) / (m__nbr_meas * 1000) % 1000 >= 500 )  //take 3 digits after period to round
+  if (m__nbr_meas == 0){
+    return 0;
+  }
+  else if ((m__total * 1000) / (m__nbr_meas * 1000) % 1000 >= 500 )  //take 3 digits after period to round
     return m__total / m__nbr_meas  + 1;
   else
     return m__total / m__nbr_meas; 
