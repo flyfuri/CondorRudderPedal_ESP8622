@@ -4,4 +4,4 @@
 .vscode/launch.json
 .vscode/ipch
 .logs
-logs/device-monitor*.*
+logs

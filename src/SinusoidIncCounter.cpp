@@ -6,17 +6,33 @@
 
 #define _USE_MATH_DEFINES
 
-#define DEBGOUT 99
+#ifndef DEBGOUT
+    #define DEBGOUT 99  //if this is 99 dbugprints will be active
+#endif
 
 #if DEBGOUT == 99
-  #define dbugprint(x) Serial.print(x)
-  #define dbugprintln(x) Serial.println(x)
+    #ifndef dbugprint
+        #define dbugprint(x) Serial.print(x)
+    #endif
+    #ifndef dbugprintln
+        #define dbugprintln(x) Serial.println(x)
+    #endif
 #else
-  #define dbugprint(x) 
-  #define dbugprintln(x) 
+    #ifndef dbugprint
+        #define dbugprint(x)
+    #endif
+    #ifndef dbugprintln
+        #define dbugprintln(x)
+    #endif
 #endif
 
 CSinIncCntr::CSinIncCntr(){
+    m__sumOnLastCrossing = -9999; 
+    m__sumMidLine = 0;
+    m__actStatusSUB = 0;  
+    m__actStatusSUM = 0; 
+    m__sumAtPowerON = -9999; 
+    m__offset = -9999;
     for(int i = 0; i < NBR_TEETH_ON_RACK  * 2; i++){
         for(int ii = 0; ii < NBR_TO_AVR_IND_TOOTH; ii++){
             teethrack[i].halft_min[ii]=0;
@@ -50,21 +66,53 @@ bool CSinIncCntr::m__calcActIndexTeethrack(){
 int CSinIncCntr::m__calcSumMid(){
     if(m__sumMidLine == 0 || m__actStatusSUM == 0){ //initial search for middle line of summary curve
         if(m__actStatusSUM == 0)
-        {
+        {  
             int tempCrsDiff = m__sum - m__sumOnLastCrossing;
-            if(m__sumOnLastCrossing == 0){  //only the case at very first crossing measured
+            if(m__sumOnLastCrossing == -9999){  //only the case at very first crossing measured
                 m__sumOnLastCrossing = m__sum;
             }
-            else if (tempCrsDiff <= INIT_MIN_DIST_SUM_MINMAX * -1){ //old sum (last crossing) is MIN of curve
-                m__actStatusSUM = 1;
-                return m__sumMidLine = m__sumOnLastCrossing + SUM_MIDLINE_ABOVE_MIN; 
-            }
-            else if (tempCrsDiff >= INIT_MIN_DIST_SUM_MINMAX){ //act sum (this crossing) is MIN of curve
+            else if (tempCrsDiff <= INIT_MIN_DIST_SUM_MINMAX * -1){ //act sum (last crossing) is MIN of curve
                 m__actStatusSUM = -1;
+                
+                //interpolate startup position to calculate offset later
+                /*dbugprintln(";");    
+                dbugprint("Sum negative; ");      
+                dbugprint(";min:");   
+                dbugprint(m__sum);      
+                dbugprint(";max:");   
+                dbugprint(m__sumOnLastCrossing);        
+                dbugprint(";startpos:");   
+                dbugprint(m__sumAtPowerON);  */
+                m__sumAtPowerON = m__SinInterpolMinMax(m__sum, m__sumOnLastCrossing, m__sumAtPowerON, INTPOLRES);      
+                /*dbugprint(";intpol:");   
+                dbugprint(m__sumAtPowerON);  
+                dbugprintln(";");*/    
+
+                //return line which decides whether sum curve is MIN or MAX
+                return m__sumMidLine = m__sum + SUM_MIDLINE_ABOVE_MIN;  
+            }
+            else if (tempCrsDiff >= INIT_MIN_DIST_SUM_MINMAX){ //old sum (this crossing) is MIN of curve
+                m__actStatusSUM = 1;
                 /*if (m__actStatusSUB = -1){
                     m__actHalfTooth--;
-                }*/
-                return m__sumMidLine = m__sum + SUM_MIDLINE_ABOVE_MIN;
+                }  TODO*/ 
+
+                //interpolate startup position to calculate offset later
+                /*dbugprintln(";");    
+                dbugprint("Sum positive; ");      
+                dbugprint(";min:");   
+                dbugprint(m__sum);      
+                dbugprint(";max:");   
+                dbugprint(m__sumOnLastCrossing);        
+                dbugprint(";startpos:");   
+                dbugprint(m__sumAtPowerON); */ 
+                m__sumAtPowerON = m__SinInterpolMinMax(m__sumOnLastCrossing, m__sum, m__sumAtPowerON, INTPOLRES);  
+                /*dbugprint(";intpol:");   
+                dbugprint(m__sumAtPowerON);  
+                dbugprintln(";"); */   
+                
+                //return line which decides whether sum curve is MIN or MAX
+                return m__sumMidLine = m__sumOnLastCrossing + SUM_MIDLINE_ABOVE_MIN;
             }
         } 
         return 0;
@@ -155,13 +203,22 @@ int CSinIncCntr::m__SinInterpolMinMax(int min, int max, int actval, int resoluti
         min = SumCurveLastMins.getAverage();
     }
 
-    if(max > 0 && min > 0 && max > min){ //do only interpolate if some min and max is memorised already
-        double tmpmax = max -min;  
-        double tmpact = min <= actval ? actval - min : min; 
-        double tmpactval = tmpact > tmpmax ? tmpmax : tmpact;
-        double tmpresult = (resolution / PI) * ((asin(((2 / tmpmax) * tmpactval)-1)) + PI/2);
-        //double tmpresult = (resolution/(PI/2)) * sin(((PI/2)/tmpmax) * tmpactval);
-        return (int)(tmpresult * 1000) % 1000 >= 500 ? (int)tmpresult + 1 : (int)tmpresult;  //take 3 digits after period to round
+    if(max > 0 && min > 0){ //do only interpolate if some min and max is memorised already
+        if(actval < min){
+            return 0;
+        }
+        else if(actval >= max){
+            return resolution;
+        }
+        else{
+            double tmpresult = (resolution / PI) * ((asin(((2 / ((float)max - (float)min)) * ((float)actval - (float)min)) - 1)) + PI / 2);
+
+            /*double tmpmax = max -min;  
+            double tmpactval = actval - min;
+            double tmpresult = (resolution / PI) * ((asin(((2 / tmpmax) * tmpactval)-1)) + PI/2);
+            //double tmpresult = (resolution/(PI/2)) * sin(((PI/2)/tmpmax) * tmpactval);*/
+            return (int)(tmpresult * 1000) % 1000 >= 500 ? (int)tmpresult + 1 : (int)tmpresult;  //take 3 digits after period to round
+        }
     }
     else{
         return 0;
@@ -187,6 +244,7 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
         else{
             m__actStatusSUB = -1;
         } 
+        m__sumAtPowerON = m__sum;  //memorize actual sum to do interpolation of very first position later
     }
 
     if(m__actStatusSUB > 0 && m__sub < 0){ //when difference is crossing Null-line from positive to negative
@@ -247,29 +305,59 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
     } */
     if (m__sumMidLine != 0){
         int tempIntpol = m__SinInterpolMinMax(m__intpolMin, m__intpolMax, m__sum, INTPOLRES);
+
+        int tmpActPos;
         if (m__actStatusSUB < 0){
-            m__actPos = m__actHalfTooth * INTPOLRES + tempIntpol;
+            tmpActPos = m__actHalfTooth * INTPOLRES + tempIntpol;
+            if(m__offset == -9999){ //only the case at the very beginning
+                m__offset = tmpActPos - (m__sumAtPowerON) ;    
+                /*dbugprintln(";");    
+                dbugprint("Sub negative; ");    
+                dbugprint(m__sumAtPowerON);     
+                dbugprint(";");   
+                dbugprint(tmpActPos);  
+                dbugprint(";");     
+                dbugprint(m__offset);   
+                dbugprintln(";");   */  
+            }
         }
         else if (m__actStatusSUB > 0){
-            m__actPos = m__actHalfTooth * INTPOLRES + (INTPOLRES - tempIntpol);
+            tmpActPos = m__actHalfTooth * INTPOLRES + (INTPOLRES - tempIntpol);
+            if(m__offset == -9999){ //only the case at the very beginning
+                m__offset = tmpActPos - (INTPOLRES - m__sumAtPowerON);   
+                /*dbugprintln(";");    
+                dbugprint("Sub positive; ");    
+                dbugprint(m__sumAtPowerON);     
+                dbugprint(";");   
+                dbugprint(tmpActPos);  
+                dbugprint(";");     
+                dbugprint(m__offset);   
+                dbugprintln(";"); */    
+            }
         }
         else{
-            m__actPos = m__actHalfTooth * INTPOLRES;
+            tmpActPos = m__actHalfTooth * INTPOLRES;
         }
+
+        m__actPos = tmpActPos + m__offset;
     }
 
 
     dbugprint(m__actPos);     
     dbugprint(";");
-    dbugprint(m__intpolMin);      
+    /*dbugprint(m__intpolMin);      
     dbugprint(";");
     dbugprint(m__intpolMax);    
     dbugprint(";");
     dbugprint(teethrack[m__actIndexTeethrack].halftMax_index);      
     dbugprint(";");
     dbugprint(teethrack[m__actIndexTeethrack].halftMin_index);      
-    dbugprint(";");
+    dbugprint(";");*/
     dbugprint(m__actHalfTooth);      
+    dbugprint(";");
+    dbugprint(m__offset);     
+    dbugprint(";");
+    dbugprint(m__sumAtPowerON);     
     dbugprint(";");
     dbugprint(actCh1);     
     dbugprint(";");
@@ -286,11 +374,11 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
     dbugprint(m__actIndexTeethrack);
     dbugprint(";");
 
-    return m__actHalfTooth;
+    return m__actPos;
 } 
 
 int CSinIncCntr::read(){
-    return m__actHalfTooth;
+    return m__actPos;
 } 
 
 int CSinIncCntr::setTo(int value){
