@@ -43,8 +43,6 @@ CSinIncCntr::CSinIncCntr(){
         teethrack[i].halftMin_index=0;
         teethrack[i].halftMax_index=0;
     }
-    SumCurveLastMaxs.reset();
-    SumCurveLastMins.reset();
 }
 
 bool CSinIncCntr::m__calcActIndexTeethrack(){
@@ -64,84 +62,52 @@ bool CSinIncCntr::m__calcActIndexTeethrack(){
 }
 
 int CSinIncCntr::m__calcSumMid(){
-    if(m__sumMidLine == 0 || m__actStatusSUM == 0){ //initial search for middle line of summary curve
-        if(m__actStatusSUM == 0)
-        {  
-            int tempCrsDiff = m__sum - m__sumOnLastCrossing;
-            if(m__sumOnLastCrossing == -9999){  //only the case at very first crossing measured
-                m__sumOnLastCrossing = m__sum;
-            }
-            else if (tempCrsDiff <= INIT_MIN_DIST_SUM_MINMAX * -1){ //act sum (last crossing) is MIN of curve
-                m__actStatusSUM = -1;
-                
-                //interpolate startup position to calculate offset later
-                /*dbugprintln(";");    
-                dbugprint("Sum negative; ");      
-                dbugprint(";min:");   
-                dbugprint(m__sum);      
-                dbugprint(";max:");   
-                dbugprint(m__sumOnLastCrossing);        
-                dbugprint(";startpos:");   
-                dbugprint(m__sumAtPowerON);  */
-                m__sumAtPowerON = m__SinInterpolMinMax(m__sum, m__sumOnLastCrossing, m__sumAtPowerON, INTPOLRES);      
-                /*dbugprint(";intpol:");   
-                dbugprint(m__sumAtPowerON);  
-                dbugprintln(";");*/    
-
-                //return line which decides whether sum curve is MIN or MAX
-                return m__sumMidLine = m__sum + SUM_MIDLINE_ABOVE_MIN;  
-            }
-            else if (tempCrsDiff >= INIT_MIN_DIST_SUM_MINMAX){ //old sum (this crossing) is MIN of curve
-                m__actStatusSUM = 1;
-                /*if (m__actStatusSUB = -1){
-                    m__actHalfTooth--;
-                }  TODO*/ 
-
-                //interpolate startup position to calculate offset later
-                /*dbugprintln(";");    
-                dbugprint("Sum positive; ");      
-                dbugprint(";min:");   
-                dbugprint(m__sum);      
-                dbugprint(";max:");   
-                dbugprint(m__sumOnLastCrossing);        
-                dbugprint(";startpos:");   
-                dbugprint(m__sumAtPowerON); */ 
-                m__sumAtPowerON = m__SinInterpolMinMax(m__sumOnLastCrossing, m__sum, m__sumAtPowerON, INTPOLRES);  
-                /*dbugprint(";intpol:");   
-                dbugprint(m__sumAtPowerON);  
-                dbugprintln(";"); */   
-                
-                //return line which decides whether sum curve is MIN or MAX
-                return m__sumMidLine = m__sumOnLastCrossing + SUM_MIDLINE_ABOVE_MIN;
-            }
-        } 
-        return 0;
+    
+    int tempCrsDiff = m__sum - m__sumOnLastCrossing;
+    if(m__sumOnLastCrossing == -9999){  //only the case at very first crossing measured
+        m__sumOnLastCrossing = m__sum;
     }
-    else {
-        if(m__sum < m__sumMidLine){
-            SumCurveLastMins.measurement(m__sum);
-            if (SumCurveLastMins.getNbrMeas() > 4){
-                m__sumMidLine = SumCurveLastMins.getAverage() + SUM_MIDLINE_ABOVE_MIN;
-            }
-        }
+    else if (tempCrsDiff <= INIT_MIN_DIST_SUM_MINMAX * -1){ //act sum (this crossing) is MIN of curve
+       if(m__sumMidLine == 0){ //initial search for middle line of summary curve
+            m__offset= (-2 * INTPOLRES) + m__SinInterpolMinMax(m__sum, m__sumOnLastCrossing, m__sumAtPowerON, INTPOLRES);
+            m__sumHighestMin = m__sum;
+            m__sumLowestMax = m__sumOnLastCrossing;  
+        }  
+        if(m__sum > m__sumHighestMin)
+            {m__sumHighestMin = m__sum;}
+        if(m__sumOnLastCrossing > m__sumLowestMax)
+            {m__sumLowestMax = m__sumOnLastCrossing;}  
+        
+        //return line which decides whether sum curve is MIN or MAX
+        m__sumMidLine = (m__sumHighestMin + m__sumLowestMax) / 2;  
+    }
+    else if (tempCrsDiff >= INIT_MIN_DIST_SUM_MINMAX){ //act sum (this crossing) is MAX of curve
+       if(m__sumMidLine == 0){ //initial search for middle line of summary curve
+            m__offset = (m__SinInterpolMinMax(m__sumOnLastCrossing, m__sum, m__sumAtPowerON, INTPOLRES) * -1) - INTPOLRES;
+            m__sumHighestMin = m__sumOnLastCrossing;
+            m__sumLowestMax = m__sum;
+        }  
+        
+        if(m__sumOnLastCrossing > m__sumHighestMin)
+            {m__sumHighestMin = m__sumOnLastCrossing;}
+        if(m__sum < m__sumLowestMax)
+            {m__sumLowestMax = m__sum;}
 
-        if(m__sum >= m__sumMidLine){
-            SumCurveLastMaxs.measurement(m__sum);
-            //if (SumCurveLastMaxs.getNbrMeas() > 4){
-            //    m__sumMidLine = SumCurveLastMaxs.getAverage() + SUM_MIDLINE_ABOVE_MIN;
-            //}
-        }
-
+        //return line which decides whether sum curve is MIN or MAX
+        m__sumMidLine = (m__sumHighestMin + m__sumLowestMax) / 2; 
+    }
+    if(m__sumMidLine > 0){
         if (m__sum >= m__sumMidLine){
-           m__actStatusSUM = 1; 
+            m__actStatusSUM = 1; 
         }
         else{
-            m__actStatusSUM = 1;
+            m__actStatusSUM = -1;
         }
-
         return m__sumMidLine;
+        }
+    else{
+        return 0;
     }
-    return 0;
 }
 
 int CSinIncCntr::m__addCalcMinAv(int halftooth, int valueToAdd){ //add and calc average Min for given half-tooth
@@ -195,14 +161,6 @@ int CSinIncCntr::m__addCalcMaxAv(int halftooth, int valueToAdd){ //add and calc 
 }
 
 int CSinIncCntr::m__SinInterpolMinMax(int min, int max, int actval, int resolution){
-
-   if(max <= 50 && SumCurveLastMaxs.getNbrMeas() > 4){
-        max = SumCurveLastMaxs.getAverage();
-    }
-    if(min <= 10 && SumCurveLastMins.getNbrMeas() > 4){
-        min = SumCurveLastMins.getAverage();
-    }
-
     if(max > 0 && min > 0){ //do only interpolate if some min and max is memorised already
         if(actval < min){
             return 0;
@@ -247,7 +205,7 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
         m__sumAtPowerON = m__sum;  //memorize actual sum to do interpolation of very first position later
     }
 
-    if(m__actStatusSUB > 0 && m__sub < 0){ //when difference is crossing Null-line from positive to negative
+    if(m__actStatusSUB > 0 && m__sub < 0){ //CROSSING: when difference is crossing Null-line from positive to negative
         if (m__calcSumMid() != 0){
             if(m__sum >= m__sumMidLine) //sub FALLING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MAX)
             {   
@@ -275,7 +233,7 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
         m__sumOnLastCrossing = m__sum;
         m__actStatusSUB = -1;  //always to do when sub crossing zero line!
     }  
-    else if(m__actStatusSUB < 0 && m__sub >= 0){//when difference is crossing Null-line from negative to positive
+    else if(m__actStatusSUB < 0 && m__sub >= 0){////CROSSING: when difference is crossing Null-line from negative to positive
         if (m__calcSumMid() != 0){
             if(m__sum >= m__sumMidLine)//sub RISING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MAX)
             {   
@@ -309,37 +267,15 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
         int tmpActPos;
         if (m__actStatusSUB < 0){
             tmpActPos = m__actHalfTooth * INTPOLRES + tempIntpol;
-            if(m__offset == -9999){ //only the case at the very beginning
-                m__offset = tmpActPos - (m__sumAtPowerON) ;    
-                /*dbugprintln(";");    
-                dbugprint("Sub negative; ");    
-                dbugprint(m__sumAtPowerON);     
-                dbugprint(";");   
-                dbugprint(tmpActPos);  
-                dbugprint(";");     
-                dbugprint(m__offset);   
-                dbugprintln(";");   */  
-            }
         }
         else if (m__actStatusSUB > 0){
             tmpActPos = m__actHalfTooth * INTPOLRES + (INTPOLRES - tempIntpol);
-            if(m__offset == -9999){ //only the case at the very beginning
-                m__offset = tmpActPos - (INTPOLRES - m__sumAtPowerON);   
-                /*dbugprintln(";");    
-                dbugprint("Sub positive; ");    
-                dbugprint(m__sumAtPowerON);     
-                dbugprint(";");   
-                dbugprint(tmpActPos);  
-                dbugprint(";");     
-                dbugprint(m__offset);   
-                dbugprintln(";"); */    
-            }
         }
         else{
             tmpActPos = m__actHalfTooth * INTPOLRES;
         }
 
-        m__actPos = tmpActPos + m__offset;
+        m__actPos = tmpActPos; //+ m__offset;
     }
 
 

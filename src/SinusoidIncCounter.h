@@ -14,6 +14,8 @@ class CSinIncCntr{
         int m__sum;  //summary of both channels
         int m__sub;   //CH1 - CH2
         int m__sumOnLastCrossing = -9999; //point on sum curve when channel curves crosse last time
+        int m__sumLowestMax;  //defines middle line of summary 
+        int m__sumHighestMin; //defines middle line of summary 
         int m__sumMidLine = 0; //approx middle line of summary
         short m__actStatusSUB = 0;  //wich half of the difference curve we're now (-1=negative, 0 undefined(at beginning), 1=positive)
         short m__actStatusSUM = 0;  //wich half of the summary curve we're now (-1=MIN, 0 undefined(at beginning), 1=MAX)
@@ -21,8 +23,8 @@ class CSinIncCntr{
         int m__offset = -9999; //offset calculated after very first travel beetween to opposite crossings of the channel curve
         
         // used to find the approx. middle line of summary curve
-        ANFLTR::CFilterAnalogOverMeasures SumCurveLastMaxs{10,10};
-        ANFLTR::CFilterAnalogOverMeasures SumCurveLastMins{10,10};
+        //ANFLTR::CFilterAnalogOverMeasures SumCurveLastMaxs{10,10};
+        //ANFLTR::CFilterAnalogOverMeasures SumCurveLastMins{10,10};
         //bool m__initialSumMidFound; //initial sum middle line has been found
 
         //used for interpolation beetween flank counts to increse resolution        
