@@ -15,6 +15,10 @@ CFilterAnalogBase::CFilterAnalogBase(unsigned int buffersize){ //Constructor
     m_init(buffersize);
 }
 
+CFilterAnalogBase::~CFilterAnalogBase(){
+  delete m__bf;
+}
+
 void CFilterAnalogBase::m_init(unsigned int buffersize){ //Constructor
   if (buffersize < 2)
     m__bf_length = 2;
@@ -63,6 +67,20 @@ void CFilterAnalogBase::m__remove(){
   if (++m__PntrOldest - m__bf >= m__bf_length) { 
     m__PntrOldest = m__bf; 
   }
+}
+
+int CFilterAnalogBase::m__average(){
+  if (m__nbr_meas == 0){
+    return 0;
+  }
+  else if ((m__total * 1000) / (m__nbr_meas * 1000) % 1000 >= 500 )  //take 3 digits after period to round
+    return m__total / m__nbr_meas  + 1;
+  else
+    return m__total / m__nbr_meas; 
+}
+
+int CFilterAnalogBase::getAverage(){ //just average
+  return m__average();
 }
 
 int CFilterAnalogBase::calcMinMax (bool return_max){
@@ -118,7 +136,7 @@ CFilterAnalogOverTime::CFilterAnalogOverTime(unsigned int buffersize, unsigned l
 }
 
 
-int CFilterAnalogOverTime::measurement(int &measure){
+int CFilterAnalogOverTime::measurement(int &measureToAdd){
   
   unsigned long tstamp = micros(); //timestamp of that particular measurement
 
@@ -126,16 +144,13 @@ int CFilterAnalogOverTime::measurement(int &measure){
       m__remove();
   }
 
-  m__add(measure, tstamp);
+  m__add(measureToAdd, tstamp);
 
   while(tstamp  - m__PntrOldest->tstamp > m__filtert_micros){  //remove all measures which are older than filter time
     m__remove();
   }
 
-  if ((m__total * 1000) / (m__nbr_meas*1000) % 1000 >= 500 )  //take 3 digits after period to round
-    return m__total / m__nbr_meas  + 1;
-  else
-    return m__total / m__nbr_meas;
+  return m__average();
 }
 
 unsigned long CFilterAnalogOverTime::setgetTargfiltT_micros (unsigned long targfilttime_micros){
@@ -163,7 +178,7 @@ CFilterAnalogOverMeasures::CFilterAnalogOverMeasures(unsigned int buffersize, in
     m__filterNbrMeasures = (unsigned)targMeasNbrs > buffersize ? targMeasNbrs : (unsigned)buffersize;
 }
 
-int CFilterAnalogOverMeasures::measurement(int &measure){
+int CFilterAnalogOverMeasures::measurement(int &measureToAdd){
   
   unsigned long tstamp = micros(); //timestamp of that particular measurement
 
@@ -171,16 +186,13 @@ int CFilterAnalogOverMeasures::measurement(int &measure){
       m__remove();
   }
 
-  m__add(measure, tstamp);
+  m__add(measureToAdd, tstamp);
 
    while(m__nbr_meas >  m__filterNbrMeasures){  //remove all measures which are older than filter time
     m__remove();
   }
 
-  if ((m__total * 1000) / (m__nbr_meas*1000) % 1000 >= 500 )  //take 3 digits after period to round
-    return m__total / m__nbr_meas  + 1;
-  else
-    return m__total / m__nbr_meas;
+  return m__average();
 }
 
 int CFilterAnalogOverMeasures::setgetTargetMeasures (unsigned int targMeasNbrs){

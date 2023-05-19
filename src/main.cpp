@@ -4,8 +4,8 @@
 #include <SinusoidIncCounter.h>
 
 #define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
-#define DEBGOUT 10 //debug chanel mode: 0=normal(hitire) : 1=value 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
-#define SCALEM 2 //Scalemode:  0= +/-180  1= 0..256(128 in middle) 2=unscaled
+#define DEBGOUT 99 //debug chanel mode: 0=normal(hatire) : 1=encoder left 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
+#define SCALEM 0 //Scalemode:  0= +/-180  1= 0..256(128 in middle) 2=unscaled
 
 #if DEBGOUT == 99
   #define dbugprint(x) Serial.print(x)
@@ -27,7 +27,7 @@ int resetADC;
 int daylightDist[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc (measure daylight desturbance by measure without LED activated)
 int analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
 float filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
-float sumCh1u2; //summary of Channel 1 and 2 
+int encoderResult; //summary of Channel 1 and 2 
 unsigned long t_lastcycl, t_now; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
@@ -85,16 +85,17 @@ void readChannel(short chNr, bool bLEDisON){
 void setup() {
   // put your setup code here, to run once:
   act_Mux_Channel = 0;
-  minLPedal=-1;
-  maxLPedal=-1;
-  minRPedal=-1;
-  maxRPedal=-1;
+  minLPedal=-9999;
+  maxLPedal=-9999;
+  minRPedal=-9999;
+  maxRPedal=-9999;
   i_clk=0;
-  sumCh1u2=0;
+  encoderResult=0;
   bMuxDelay = false;
   bIR_LED_on = false;
   encoderL.setTo(0);
   //analogReference(DEFAULT);
+  pinMode(A0, INPUT);
   pinMode(ACT_MUX_CH1, OUTPUT); 
   pinMode(ACT_MUX_CH2, OUTPUT); 
   pinMode(ACT_MUX_CH3, OUTPUT); 
@@ -116,18 +117,23 @@ void setup() {
     TimerMux.setTime(20);
   #endif
   TimerIRonOff.setTime(50);
-  Serial.begin(230400);//(460800);//(115200);
 
-  //initialize hatire
-  hat.Begin=0xAAAA; // header frame 
-  hat.Cpt=0; // Frame Number or Error code 
-  hat.End=0x5555; // footer frame
-  hat.gyro[0] = 0;
-  hat.gyro[1] = 0;
-  hat.gyro[2] = 0;
-  hat.acc[0] = 0;
-  hat.acc[1] = 0;
-  hat.acc[2] = 0;
+  #if DEBGOUT != 0 //hitire max on 115200
+    Serial.begin(115200, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200);
+  #else
+    Serial.begin(115200, SERIAL_8N1, SERIAL_RX_ONLY); //hitire max on 115200!!!!
+  
+    //initialize hatire
+    hat.Begin=0xAAAA; // header frame 
+    hat.Cpt=0; // Frame Number or Error code 
+    hat.End=0x5555; // footer frame
+    hat.gyro[0] = 0;
+    hat.gyro[1] = 0;
+    hat.gyro[2] = 0;
+    hat.acc[0] = 0;
+    hat.acc[1] = 0;
+    hat.acc[2] = 0;
+  #endif
 }
 
 void loop() {
@@ -153,7 +159,6 @@ void loop() {
                   act_Mux_Channel = 4;
                   break;
         case 4:   procDayLightFilter(2, bIR_LED_on);
-                  sumCh1u2 = filtValue[1] + filtValue[2];
                   act_Mux_Channel = 5;
                   break;
     }
@@ -183,14 +188,9 @@ void loop() {
       bIRonoffDelay = true;
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
-      #if DEBGOUT != 99
-       //Serial.print("  ");
-       //Serial.print(sumCh1u2);
-        Serial.print("  ");
-        Serial.print(encoderL.calc((int)filtValue[1], (int)filtValue[2]));
-        Serial.print("  ");
-      #endif
-      
+
+      encoderResult = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
+  
       /*bIR_LED_on = true;
       digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);  */ 
       #if DEBGOUT == 2
@@ -212,31 +212,23 @@ void loop() {
         Serial.print(filterA.getNbrMeas());
       #endif
 
-      #if DEBGOUT != 0
-        t_lastcycl = t_now;
-        t_now = micros();
-        Serial.print("  ");
-        Serial.println(t_now - t_lastcycl);
-      #endif
-      
-
-      i_clk=10;
-    
-      if (minLPedal >= 0 && minRPedal >= 0 && maxLPedal >= 0 && maxRPedal >= 0){ 
+      minLPedal = -500;//TODO:
+      minRPedal = -500; //TODO:
+      maxLPedal = 500; //TODO:
+      maxRPedal = 500;  //TODO:
+      if (minLPedal != -9999 && minRPedal != -9999 && maxLPedal != -9999 && maxRPedal != -9999){ 
         #if SCALEM == 0
-          filtValue[1] = map(filtValue[1], minRPedal, maxRPedal, 0 , -180);
-          filtValue[2] = map(filtValue[2], minLPedal, maxLPedal, 0 , 180); 
+          encoderResult = map(encoderResult, minRPedal, maxRPedal, 0 , -180);  //TODO:
         #elif SCALEM == 1
-          filtValue[1] = map(filtValue[1], minRPedal, maxRPedal, 128 , 0);
-          filtValue[2] = map(filtValue[2], minLPedal, maxLPedal, 0 , 128); 
+          encoderResult = map(encoderResult, minRPedal, maxRPedal, 128 , 0);  //TODO:
         #elif SCALEM == 2
         #endif
         //outputRudder = filtValue[1] + filtValue[2];
         //out8BitRudder = outputRudder;  //old output for UNO_Joy
 
         #if DEBGOUT == 0
-          if(abs(hat.gyro[0] - (filtValue[1] + filtValue[2])) > 1){
-            hat.gyro[0] = filtValue[1] + filtValue[2];
+          if(abs(hat.gyro[0] - (float)encoderResult > 1)){
+            hat.gyro[0] = (float)encoderResult;
 
               // Send HAT  Trame to  PC
               Serial.write((byte*)&hat,30);
@@ -247,89 +239,20 @@ void loop() {
           }
         #elif DEBGOUT == 1 
           Serial.println(outputRudder);
+        #elif DEBGOUT == 10
+        Serial.print(encoderResult);
         #endif
 
-        TimerBlink.setTime(50);         
+        #if DEBGOUT != 0
+          t_lastcycl = t_now;
+          t_now = micros();
+          Serial.print("  ");
+          Serial.println(t_now - t_lastcycl);
+        #endif       
       } 
-      else{  
-        if (minLPedal < 0 ){
-          TimerInitLeft.setTime(4000);
-          if (abs(tempLPedal - filtValue[2]) < 5 && filtValue[2] < 400){ //value stable and over certain level
-          tLres=TimerInitLeft.evaluate(true);              
-            if (tLres) {
-              minLPedal=filtValue[2];
-              //Serial.println("minL calibrated");          
-            }
-          }
-          else {
-            tempLPedal = filtValue[2];
-            TimerInitLeft.evaluate(false);
-          }
-        }            
-        else if (maxLPedal < 0){
-          if (abs(tempLPedal - filtValue[2]) < 5 && filtValue[2] > 650){  //value stable and over certain level
-            tLres=TimerInitLeft.evaluate(true);     
-            if (tLres){
-              maxLPedal=filtValue[2];            
-              //Serial.println("maxL calibrated");
-              TimerBlink.setTime(750);                       
-            }
-          }
-          else{
-            tempLPedal = filtValue[2];
-            TimerInitLeft.evaluate(false);
-          }
-        } 
-
-        if (minRPedal < 0 ){
-          TimerInitRigth.setTime(4000);
-          if ((abs(tempRPedal - filtValue[1])) < 5 && (filtValue[1] < 400)) {      
-            tRres=TimerInitRigth.evaluate(true);
-            if (tRres==0){
-              minRPedal=filtValue[1];
-              //Serial.println("minR calibrated");           
-            }
-          }
-          else {
-            tempRPedal = filtValue[1];
-            TimerInitRigth.evaluate(false);
-          }
-        }            
-        else if (maxRPedal < 0){
-          if (abs(tempRPedal - filtValue[1]) < 5 && filtValue[1] > 650){      
-            tRres=TimerInitRigth.evaluate(true);
-            if (tRres){
-              maxRPedal=filtValue[1];
-              //Serial.println("maxR calibrated"); 
-              TimerBlink.setTime(500);                      
-            }
-          }
-          else{
-            tempRPedal = filtValue[1];
-            TimerInitRigth.evaluate(false);
-          }
-        } 
-      }        
-    }
+    }        
   }
-  else{
-    if (!bMuxDelay && (act_Mux_Channel == 0 || act_Mux_Channel == 5)){
-      i_clk++; 
-    }
-  }
-
-  //Led Blink 
-  if (TimerBlink.evaluate(true)) {
-    if (blkFlag){
-      digitalWrite(LED_BUILTIN, LOW);
-      blkFlag=false;
-    } 
-    else{
-        digitalWrite(LED_BUILTIN, HIGH);
-        blkFlag=true;       
-    }    
-    TimerBlink.evaluate(false);  
-  } 
+  
   //MuxOuts 
   #if DEBGCH == 0 || DEBGCH == 5
     if(!bMuxDelay){
@@ -378,6 +301,7 @@ void loop() {
     digitalWrite(ACT_MUX_CH1, LOW);
     digitalWrite(ACT_MUX_CH2, HIGH);
   #endif
+  
   /*dbugprint(act_Mux_Channel);
   dbugprint(" ");
   dbugprint(i_clk);
