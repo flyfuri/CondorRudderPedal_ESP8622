@@ -6,6 +6,7 @@
 #define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
 #define DEBGOUT 99 //debug chanel mode: 0=normal(hatire) : 1=encoder left 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
 #define SCALEM 0 //Scalemode:  0= +/-180  1= 0..256(128 in middle) 2=unscaled
+#define PWMON 1 // PWM output is on
 
 #if DEBGOUT == 99
   #define dbugprint(x) Serial.print(x)
@@ -20,6 +21,7 @@ const int ACT_MUX_CH2 = GPIO_ID_PIN(5);
 const int ACT_MUX_CH3 = GPIO_ID_PIN(12);
 const int ACT_MUX_CH4 = GPIO_ID_PIN(13);
 const int IR_LEDS = GPIO_ID_PIN(14);
+const int PIN_PWM_OUT = GPIO_ID_PIN(2);
 
 int act_Mux_Channel = 0; //which MUX-Channel to activate (0 = none, 1,2,3,4)
 int i_clk; //counters: loopclock,measures CH1 measures CH2
@@ -107,8 +109,10 @@ void setup() {
   digitalWrite(ACT_MUX_CH4, LOW);
   bIR_LED_on = false;
   digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT); //same as GPOI2
   digitalWrite(LED_BUILTIN, LOW);
+  pinMode(PIN_PWM_OUT, OUTPUT);
+  digitalWrite(PIN_PWM_OUT, LOW);
   //only arduiono: resetADC=analogRead(A0); //read A0 pinned to ground to reset ADC capacitor;
   TimerBlink.setTime(1000);
   #if DEBGCH == 5
@@ -212,44 +216,48 @@ void loop() {
         Serial.print(filterA.getNbrMeas());
       #endif
 
-      minLPedal = -500;//TODO:
-      minRPedal = -500; //TODO:
-      maxLPedal = 500; //TODO:
-      maxRPedal = 500;  //TODO:
-      if (minLPedal != -9999 && minRPedal != -9999 && maxLPedal != -9999 && maxRPedal != -9999){ 
-        #if SCALEM == 0
-          encoderResult = map(encoderResult, minRPedal, maxRPedal, 0 , -180);  //TODO:
-        #elif SCALEM == 1
-          encoderResult = map(encoderResult, minRPedal, maxRPedal, 128 , 0);  //TODO:
-        #elif SCALEM == 2
-        #endif
-        //outputRudder = filtValue[1] + filtValue[2];
-        //out8BitRudder = outputRudder;  //old output for UNO_Joy
+      minRPedal = -500;
+      maxRPedal = 500;
+      #if PWMON == 1
+        int pwmscaled = constrain(map(encoderResult, minRPedal, maxRPedal, 10 , 245), 10, 245);
+        digitalWrite(PIN_PWM_OUT, pwmscaled);
+        Serial.print("  ");
+        Serial.println(pwmscaled);
+        //digitalWrite(PIN_PWM_OUT, map(encoderResult, minRPedal, maxRPedal, 10 , 245));
+      #endif
 
-        #if DEBGOUT == 0
-          if(abs(hat.gyro[0] - (float)encoderResult > 1)){
-            hat.gyro[0] = (float)encoderResult;
+      #if SCALEM == 0
+        encoderResult = map(encoderResult, minRPedal, maxRPedal, 0 , -180);  //TODO:
+      #elif SCALEM == 1
+        encoderResult = map(encoderResult, minRPedal, maxRPedal, 128 , 0);  //TODO:
+      #elif SCALEM == 2
+      #endif
+      //outputRudder = filtValue[1] + filtValue[2];
+      //out8BitRudder = outputRudder;  //old output for UNO_Joy
 
-              // Send HAT  Trame to  PC
-              Serial.write((byte*)&hat,30);
-              hat.Cpt++;
-              if (hat.Cpt>999) {
-                  hat.Cpt=0;
-              }
-          }
-        #elif DEBGOUT == 1 
-          Serial.println(outputRudder);
-        #elif DEBGOUT == 10
-        Serial.print(encoderResult);
-        #endif
+      #if DEBGOUT == 0
+        if(abs(hat.gyro[0] - (float)encoderResult > 1)){
+          hat.gyro[0] = (float)encoderResult;
 
-        #if DEBGOUT != 0
-          t_lastcycl = t_now;
-          t_now = micros();
-          Serial.print("  ");
-          Serial.println(t_now - t_lastcycl);
-        #endif       
-      } 
+            // Send HAT  Trame to  PC
+            Serial.write((byte*)&hat,30);
+            hat.Cpt++;
+            if (hat.Cpt>999) {
+                hat.Cpt=0;
+            }
+        }
+      #elif DEBGOUT == 1 
+        Serial.println(outputRudder);
+      #elif DEBGOUT == 10
+      Serial.print(encoderResult);
+      #endif
+
+      #if DEBGOUT != 0
+        t_lastcycl = t_now;
+        t_now = micros();
+        Serial.print("  ");
+        Serial.println(t_now - t_lastcycl);
+      #endif       
     }        
   }
   
