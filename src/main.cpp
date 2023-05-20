@@ -2,6 +2,7 @@
 #include <timer.h>
 #include <analog_filter.h>
 #include <SinusoidIncCounter.h>
+#include <IO_wiring.h>
 
 #define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
 #define DEBGOUT 99 //debug chanel mode: 0=normal(hatire) : 1=encoder left 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
@@ -14,12 +15,6 @@
   #define dbugprint(x) 
   #define dbugprintln(x) 
 #endif
-
-const int ACT_MUX_CH1 = GPIO_ID_PIN(4);
-const int ACT_MUX_CH2 = GPIO_ID_PIN(5);
-const int ACT_MUX_CH3 = GPIO_ID_PIN(12);
-const int ACT_MUX_CH4 = GPIO_ID_PIN(13);
-const int IR_LEDS = GPIO_ID_PIN(14);
 
 int act_Mux_Channel = 0; //which MUX-Channel to activate (0 = none, 1,2,3,4)
 int i_clk; //counters: loopclock,measures CH1 measures CH2
