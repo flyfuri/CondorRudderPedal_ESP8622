@@ -3,6 +3,7 @@
 #include <analog_filter.h>
 #include <SinusoidIncCounter.h>
 #include <IO_wiring.h>
+#include <ESP8266WiFi.h>
 
 #define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
 #define DEBGOUT 99 //debug chanel mode: 0=normal(hatire) : 1=encoder left 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
@@ -79,6 +80,7 @@ void readChannel(short chNr, bool bLEDisON){
 
 void setup() {
   // put your setup code here, to run once:
+  WiFi.forceSleepBegin();
   act_Mux_Channel = 0;
   minLPedal=-9999;
   maxLPedal=-9999;
