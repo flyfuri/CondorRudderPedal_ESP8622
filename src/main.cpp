@@ -23,6 +23,7 @@ int encoderResult; //summary of Channel 1 and 2
 unsigned long t_lastcycl, t_now; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
+int cnt0swtch = 0; //counter to "filter" zero switch
 
 ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
@@ -90,6 +91,7 @@ void setup() {
   encoderL.setTo(0);
   //analogReference(DEFAULT);
   pinMode(A0, INPUT);
+  pinMode(INP_0SWITCH_PULLUP,INPUT_PULLUP);
   pinMode(ACT_MUX_CH1, OUTPUT); 
   pinMode(ACT_MUX_CH2, OUTPUT); 
   pinMode(ACT_MUX_CH3, OUTPUT); 
@@ -255,6 +257,19 @@ void loop() {
       Serial.print(encoderResult);
       #endif
 
+      if(digitalRead(INP_0SWITCH_PULLUP) == LOW){ //inverted due to pullup
+        if(cnt0swtch < 10000){
+          cnt0swtch++;
+          if(cnt0swtch > 100){  //min 20 cycles on(aprox. 4ms each, results in aprox. 400-500ms )
+            encoderL.setTo(0);
+            cnt0swtch = 10001;
+          }
+        }
+      }
+      else{
+        cnt0swtch = 0;
+      }
+
       #if DEBGOUT != 0
         t_lastcycl = t_now;
         t_now = micros();
@@ -312,6 +327,7 @@ void loop() {
     digitalWrite(ACT_MUX_CH1, LOW);
     digitalWrite(ACT_MUX_CH2, HIGH);
   #endif
+  
   
   /*dbugprint(act_Mux_Channel);
   dbugprint(" ");
