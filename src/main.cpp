@@ -5,10 +5,6 @@
 #include <IO_wiring.h>
 #include <ESP8266WiFi.h>
 
-#define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
-#define DEBGOUT 99 //debug chanel mode: 0=normal(hatire) : 1=encoder left 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
-#define SCALEM 0 //Scalemode:  0= +/-180  1= 0..256(128 in middle) 2=unscaled
-
 #if DEBGOUT == 99
   #define dbugprint(x) Serial.print(x)
   #define dbugprintln(x) Serial.println(x)
@@ -27,6 +23,7 @@ int encoderResult; //summary of Channel 1 and 2
 unsigned long t_lastcycl, t_now; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
+int cnt0swtch = 0; //counter to "filter" zero switch
 
 ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
@@ -80,7 +77,6 @@ void readChannel(short chNr, bool bLEDisON){
 
 void setup() {
   // put your setup code here, to run once:
-  WiFi.forceSleepBegin();
   act_Mux_Channel = 0;
   minLPedal=-9999;
   maxLPedal=-9999;
@@ -93,6 +89,7 @@ void setup() {
   encoderL.setTo(0);
   //analogReference(DEFAULT);
   pinMode(A0, INPUT);
+  pinMode(INP_0SWITCH_PULLUP,INPUT_PULLUP);
   pinMode(ACT_MUX_CH1, OUTPUT); 
   pinMode(ACT_MUX_CH2, OUTPUT); 
   pinMode(ACT_MUX_CH3, OUTPUT); 
@@ -104,10 +101,18 @@ void setup() {
   digitalWrite(ACT_MUX_CH4, LOW);
   bIR_LED_on = false;
   digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
-  //only arduiono: resetADC=analogRead(A0); //read A0 pinned to ground to reset ADC capacitor;
-  TimerBlink.setTime(1000);
+  #if SER2TXONLY == 0
+    pinMode(LED_BUILTIN, OUTPUT); //same as GPOI2 and also Serial1!
+    digitalWrite(LED_BUILTIN, LOW);
+  #endif
+  #if PWMON == 1 && SER2TXONLY == 0
+    pinMode(PIN_PWM_OUT, OUTPUT);
+    digitalWrite(PIN_PWM_OUT, LOW);
+  #endif
+  #if  SER2TXONLY ==1 && PWMON == 0
+    Serial1.begin(57600, SERIAL_8N1, SERIAL_TX_ONLY, PIN_SER1TX_2);  //CONNECTION TO ARDUINO (to use with UNO JOY)
+  #endif
+
   #if DEBGCH == 5
     TimerMux.setTime(3000000);
   #else 
@@ -209,44 +214,66 @@ void loop() {
         Serial.print(filterA.getNbrMeas());
       #endif
 
-      minLPedal = -500;//TODO:
-      minRPedal = -500; //TODO:
-      maxLPedal = 500; //TODO:
-      maxRPedal = 500;  //TODO:
-      if (minLPedal != -9999 && minRPedal != -9999 && maxLPedal != -9999 && maxRPedal != -9999){ 
-        #if SCALEM == 0
-          encoderResult = map(encoderResult, minRPedal, maxRPedal, 0 , -180);  //TODO:
-        #elif SCALEM == 1
-          encoderResult = map(encoderResult, minRPedal, maxRPedal, 128 , 0);  //TODO:
-        #elif SCALEM == 2
-        #endif
-        //outputRudder = filtValue[1] + filtValue[2];
-        //out8BitRudder = outputRudder;  //old output for UNO_Joy
+      minRPedal = -500;
+      maxRPedal = 500;
+      #if PWMON == 1 && SER2TXONLY == 0
+        int pwmscaled = constrain(map(encoderResult, minRPedal, maxRPedal, 10 , 245), 10, 245);
+        digitalWrite(PIN_PWM_OUT, pwmscaled);
+        Serial.print("  ");
+        Serial.println(pwmscaled);
+        //digitalWrite(PIN_PWM_OUT, map(encoderResult, minRPedal, maxRPedal, 10 , 245));
+      #endif
+      #if SER2TXONLY ==1 && PWMON == 0
+        int serscaled = constrain(map(encoderResult, minRPedal, maxRPedal, 1 , 255), 1, 255);
+        Serial1.write(serscaled);
+      #endif
+      
 
-        #if DEBGOUT == 0
-          if(abs(hat.gyro[0] - (float)encoderResult > 1)){
-            hat.gyro[0] = (float)encoderResult;
+      #if SCALEM == 0
+        encoderResult = map(encoderResult, minRPedal, maxRPedal, 0 , -180);  //TODO:
+      #elif SCALEM == 1
+        encoderResult = map(encoderResult, minRPedal, maxRPedal, 128 , 0);  //TODO:
+      #elif SCALEM == 2
+      #endif
+      //outputRudder = filtValue[1] + filtValue[2];
+      //out8BitRudder = outputRudder;  //old output for UNO_Joy
 
-              // Send HAT  Trame to  PC
-              Serial.write((byte*)&hat,30);
-              hat.Cpt++;
-              if (hat.Cpt>999) {
-                  hat.Cpt=0;
-              }
+      #if DEBGOUT == 0
+        if(abs(hat.gyro[0] - (float)encoderResult > 1)){
+          hat.gyro[0] = (float)encoderResult;
+
+            // Send HAT  Trame to  PC
+            Serial.write((byte*)&hat,30);
+            hat.Cpt++;
+            if (hat.Cpt>999) {
+                hat.Cpt=0;
+            }
+        }
+      #elif DEBGOUT == 1 
+        Serial.println(outputRudder);
+      #elif DEBGOUT == 10
+      Serial.print(encoderResult);
+      #endif
+
+      if(digitalRead(INP_0SWITCH_PULLUP) == LOW){ //inverted due to pullup
+        if(cnt0swtch < 10000){
+          cnt0swtch++;
+          if(cnt0swtch > 100){  //min 20 cycles on(aprox. 4ms each, results in aprox. 400-500ms )
+            encoderL.setTo(0);
+            cnt0swtch = 10001;
           }
-        #elif DEBGOUT == 1 
-          Serial.println(outputRudder);
-        #elif DEBGOUT == 10
-        Serial.print(encoderResult);
-        #endif
+        }
+      }
+      else{
+        cnt0swtch = 0;
+      }
 
-        #if DEBGOUT != 0
-          t_lastcycl = t_now;
-          t_now = micros();
-          Serial.print("  ");
-          Serial.println(t_now - t_lastcycl);
-        #endif       
-      } 
+      #if DEBGOUT != 0
+        t_lastcycl = t_now;
+        t_now = micros();
+        Serial.print("  ");
+        Serial.println(t_now - t_lastcycl);
+      #endif       
     }        
   }
   
@@ -298,6 +325,7 @@ void loop() {
     digitalWrite(ACT_MUX_CH1, LOW);
     digitalWrite(ACT_MUX_CH2, HIGH);
   #endif
+  
   
   /*dbugprint(act_Mux_Channel);
   dbugprint(" ");
