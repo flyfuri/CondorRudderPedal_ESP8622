@@ -69,7 +69,7 @@ int CSinIncCntr::m__calcSumMid(){
     }
     else if (tempCrsDiff <= INIT_MIN_DIST_SUM_MINMAX * -1){ //act sum (this crossing) is MIN of curve
        if(m__sumMidLine == 0){ //initial search for middle line of summary curve
-            m__offset= (-2 * INTPOLRES) + m__SinInterpolMinMax(m__sum, m__sumOnLastCrossing, m__sumAtPowerON, INTPOLRES);
+            m__offset = 0;//m__offset= (-2 * INTPOLRES) + m__SinInterpolMinMax(m__sum, m__sumOnLastCrossing, m__sumAtPowerON, INTPOLRES);//TODO not working correctly yet
             m__sumHighestMin = m__sum;
             m__sumLowestMax = m__sumOnLastCrossing;  
         }  
@@ -83,7 +83,7 @@ int CSinIncCntr::m__calcSumMid(){
     }
     else if (tempCrsDiff >= INIT_MIN_DIST_SUM_MINMAX){ //act sum (this crossing) is MAX of curve
        if(m__sumMidLine == 0){ //initial search for middle line of summary curve
-            m__offset = (m__SinInterpolMinMax(m__sumOnLastCrossing, m__sum, m__sumAtPowerON, INTPOLRES) * -1) - INTPOLRES;
+             m__offset = 0;//m__offset = (m__SinInterpolMinMax(m__sumOnLastCrossing, m__sum, m__sumAtPowerON, INTPOLRES) * -1) - INTPOLRES; //TODO not working correctly yet
             m__sumHighestMin = m__sumOnLastCrossing;
             m__sumLowestMax = m__sum;
         }  
@@ -275,7 +275,7 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
             tmpActPos = m__actHalfTooth * INTPOLRES;
         }
 
-        m__actPos = tmpActPos; //+ m__offset;
+        m__actPos = tmpActPos + m__offset;
     }
 
 
@@ -318,5 +318,5 @@ int CSinIncCntr::read(){
 } 
 
 int CSinIncCntr::setTo(int value){
-    return m__actHalfTooth = value;
+    return m__offset = value - (m__actPos - m__offset);
 } 
