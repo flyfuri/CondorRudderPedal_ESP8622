@@ -3,11 +3,7 @@
 #include <analog_filter.h>
 #include <SinusoidIncCounter.h>
 #include <IO_wiring.h>
-
-#define DEBGCH 0 //debug chanel mode: 0=normal(mux) 1=only CH1; 2=only CH2; 3=only CH3; 2=only CH4; 5=long mux (3s each channel)  
-#define DEBGOUT 99 //debug chanel mode: 0=normal(hatire) : 1=encoder left 2=both channels raw 3=both channels filtered 4=CH1 filtered with MeasNbr 99=debug-print
-#define SCALEM 0 //Scalemode:  0= +/-180  1= 0..256(128 in middle) 2=unscaled
-#define PWMON 1 // PWM output is on
+#include <ESP8266WiFi.h>
 
 #if DEBGOUT == 99
   #define dbugprint(x) Serial.print(x)
@@ -80,6 +76,8 @@ void readChannel(short chNr, bool bLEDisON){
 
 void setup() {
   // put your setup code here, to run once:
+  WiFi.forceSleepBegin();
+
   act_Mux_Channel = 0;
   minLPedal=-9999;
   maxLPedal=-9999;
@@ -103,12 +101,18 @@ void setup() {
   digitalWrite(ACT_MUX_CH4, LOW);
   bIR_LED_on = false;
   digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
-  pinMode(LED_BUILTIN, OUTPUT); //same as GPOI2
-  digitalWrite(LED_BUILTIN, LOW);
-  pinMode(PIN_PWM_OUT, OUTPUT);
-  digitalWrite(PIN_PWM_OUT, LOW);
-  //only arduiono: resetADC=analogRead(A0); //read A0 pinned to ground to reset ADC capacitor;
-  TimerBlink.setTime(1000);
+  #if SER2TXONLY == 0
+    pinMode(LED_BUILTIN, OUTPUT); //same as GPOI2 and also Serial1!
+    digitalWrite(LED_BUILTIN, LOW);
+  #endif
+  #if PWMON == 1 && SER2TXONLY == 0
+    pinMode(PIN_PWM_OUT, OUTPUT);
+    digitalWrite(PIN_PWM_OUT, LOW);
+  #endif
+  #if  SER2TXONLY ==1 && PWMON == 0
+    Serial1.begin(57600, SERIAL_8N1, SERIAL_TX_ONLY, PIN_SER1TX_2);  //CONNECTION TO ARDUINO (to use with UNO JOY)
+  #endif
+
   #if DEBGCH == 5
     TimerMux.setTime(3000000);
   #else 
@@ -212,13 +216,18 @@ void loop() {
 
       minRPedal = -500;
       maxRPedal = 500;
-      #if PWMON == 1
+      #if PWMON == 1 && SER2TXONLY == 0
         int pwmscaled = constrain(map(encoderResult, minRPedal, maxRPedal, 10 , 245), 10, 245);
         digitalWrite(PIN_PWM_OUT, pwmscaled);
         Serial.print("  ");
         Serial.println(pwmscaled);
         //digitalWrite(PIN_PWM_OUT, map(encoderResult, minRPedal, maxRPedal, 10 , 245));
       #endif
+      #if SER2TXONLY ==1 && PWMON == 0
+        int serscaled = constrain(map(encoderResult, minRPedal, maxRPedal, 1 , 255), 1, 255);
+        Serial1.write(serscaled);
+      #endif
+      
 
       #if SCALEM == 0
         encoderResult = map(encoderResult, minRPedal, maxRPedal, 0 , -180);  //TODO:
