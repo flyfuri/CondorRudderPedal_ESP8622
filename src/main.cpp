@@ -19,7 +19,8 @@ int resetADC;
 int daylightDist[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc (measure daylight desturbance by measure without LED activated)
 int analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
 float filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
-int encoderResult; //summary of Channel 1 and 2 
+int encoderL_Result; //encoder LeftPedal Channel 1 and 2 
+int encoderR_Result; //encoder RightPedal Channel 3 and 4 
 unsigned long t_lastcycl, t_now; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
@@ -28,7 +29,7 @@ int cnt0swtch = 0; //counter to "filter" zero switch
 ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
 TIMER::CTimerMicros TimerMux, TimerIRonOff;
-CSinIncCntr encoderL; //encoder Left pedal
+CSinIncCntr encoderL, encoderR; //encoder Left pedal and Right pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
 float tempLPedal, tempRPedal;
 bool tLres, tRres, blkFlag; 
@@ -83,7 +84,7 @@ void setup() {
   minRPedal=-9999;
   maxRPedal=-9999;
   i_clk=0;
-  encoderResult=0;
+  encoderL_Result=0;
   bMuxDelay = false;
   bIR_LED_on = false;
   encoderL.setTo(0);
@@ -116,12 +117,12 @@ void setup() {
   #if DEBGCH == 5
     TimerMux.setTime(3000000);
   #else 
-    TimerMux.setTime(20);
+    TimerMux.setTime(50);
   #endif
-  TimerIRonOff.setTime(50);
+  TimerIRonOff.setTime(100);
 
   #if DEBGOUT != 0 //hitire max on 115200
-    Serial.begin(115200, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200);
+    Serial.begin(460800, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200);
   #else
     Serial.begin(115200, SERIAL_8N1, SERIAL_RX_ONLY); //hitire max on 115200!!!!
   
@@ -154,13 +155,13 @@ void loop() {
         case 1:   procDayLightFilter(1, bIR_LED_on);
                   act_Mux_Channel = 2;
                   break;
-        case 2:   procDayLightFilter(4, bIR_LED_on);
+        case 2:   procDayLightFilter(2, bIR_LED_on);
                   act_Mux_Channel = 3;
                   break;
         case 3:   procDayLightFilter(3, bIR_LED_on);
                   act_Mux_Channel = 4;
                   break;
-        case 4:   procDayLightFilter(2, bIR_LED_on);
+        case 4:   procDayLightFilter(4, bIR_LED_on);
                   act_Mux_Channel = 5;
                   break;
     }
@@ -191,7 +192,8 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
-      encoderResult = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
+      encoderL_Result = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
+      encoderR_Result = encoderR.calc((int)filtValue[3], (int)filtValue[4]);
   
       /*bIR_LED_on = true;
       digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);  */ 
@@ -214,33 +216,33 @@ void loop() {
         Serial.print(filterA.getNbrMeas());
       #endif
 
-      minRPedal = -500;
-      maxRPedal = 500;
+      minRPedal = -1000;
+      maxRPedal = 1000;
       #if PWMON == 1 && SER2TXONLY == 0
-        int pwmscaled = constrain(map(encoderResult, minRPedal, maxRPedal, 10 , 245), 10, 245);
+        int pwmscaled = constrain(map(encoderL_Result, minRPedal, maxRPedal, 10 , 245), 10, 245);
         digitalWrite(PIN_PWM_OUT, pwmscaled);
         Serial.print("  ");
         Serial.println(pwmscaled);
-        //digitalWrite(PIN_PWM_OUT, map(encoderResult, minRPedal, maxRPedal, 10 , 245));
+        //digitalWrite(PIN_PWM_OUT, map(encoderL_Result, minRPedal, maxRPedal, 10 , 245));
       #endif
       #if SER2TXONLY ==1 && PWMON == 0
-        int serscaled = constrain(map(encoderResult, minRPedal, maxRPedal, 1 , 255), 1, 255);
+        int serscaled = constrain(map((encoderL_Result - encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
         Serial1.write(serscaled);
       #endif
       
 
       #if SCALEM == 0
-        encoderResult = map(encoderResult, minRPedal, maxRPedal, 0 , -180);  //TODO:
+        encoderL_Result = map(encoderL_Result, minRPedal, maxRPedal, 0 , -180);  //TODO:
       #elif SCALEM == 1
-        encoderResult = map(encoderResult, minRPedal, maxRPedal, 128 , 0);  //TODO:
+        encoderL_Result = map(encoderL_Result, minRPedal, maxRPedal, 128 , 0);  //TODO:
       #elif SCALEM == 2
       #endif
       //outputRudder = filtValue[1] + filtValue[2];
       //out8BitRudder = outputRudder;  //old output for UNO_Joy
 
       #if DEBGOUT == 0
-        if(abs(hat.gyro[0] - (float)encoderResult > 1)){
-          hat.gyro[0] = (float)encoderResult;
+        if(abs(hat.gyro[0] - (float)encoderL_Result > 1)){
+          hat.gyro[0] = (float)encoderL_Result;
 
             // Send HAT  Trame to  PC
             Serial.write((byte*)&hat,30);
@@ -252,13 +254,13 @@ void loop() {
       #elif DEBGOUT == 1 
         Serial.println(outputRudder);
       #elif DEBGOUT == 10
-      Serial.print(encoderResult);
+      Serial.print(encoderL_Result);
       #endif
 
       if(digitalRead(INP_0SWITCH_PULLUP) == LOW){ //inverted due to pullup
         if(cnt0swtch < 10000){
           cnt0swtch++;
-          if(cnt0swtch > 100){  //min 20 cycles on(aprox. 4ms each, results in aprox. 400-500ms )
+          if(cnt0swtch > 200){  //min 200 cycles on(aprox. 2ms each, results in aprox. 350-500ms )
             encoderL.setTo(0);
             cnt0swtch = 10001;
           }
@@ -271,7 +273,9 @@ void loop() {
       #if DEBGOUT != 0
         t_lastcycl = t_now;
         t_now = micros();
-        Serial.print("  ");
+        //Serial.print(";");
+        Serial.print(serscaled);
+        Serial.print(";");
         Serial.println(t_now - t_lastcycl);
       #endif       
     }        
@@ -297,9 +301,9 @@ void loop() {
           break;
         case 2: 
           digitalWrite(ACT_MUX_CH1, LOW);
-          digitalWrite(ACT_MUX_CH2, LOW);
           digitalWrite(ACT_MUX_CH3, LOW);
-          digitalWrite(ACT_MUX_CH4, HIGH);
+          digitalWrite(ACT_MUX_CH4, LOW);
+          digitalWrite(ACT_MUX_CH2, HIGH);
           bMuxDelay = true;
           break;
         case 3: 
@@ -311,9 +315,9 @@ void loop() {
           break;
         case 4: 
           digitalWrite(ACT_MUX_CH1, LOW);
-          digitalWrite(ACT_MUX_CH4, LOW);
+          digitalWrite(ACT_MUX_CH2, LOW);
           digitalWrite(ACT_MUX_CH3, LOW);
-          digitalWrite(ACT_MUX_CH2, HIGH);
+          digitalWrite(ACT_MUX_CH4, HIGH);
           bMuxDelay = true;
           break;
       }  
