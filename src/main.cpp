@@ -26,7 +26,8 @@ int outputRudder;
 uint8_t out8BitRudder;
 int cnt0swtch = 0; //counter to "filter" zero switch
 
-ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
+ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1, 1}, {1000, 4000}, {1000, 4000}, {1000, 4000}, {1000, 4000} }; //0 = not used, 1=Ch1, 2=Ch2, ...
+ANFLTR::CFilterAnalogOverMeasures derivativesCH[5] = {{1, 1}, {6, 6}, {6, 6}, {6, 6}, {6, 6} }; //0 = not used, 1=Ch1, 2=Ch2, ...
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
 TIMER::CTimerMicros TimerMux, TimerIRonOff;
 CSinIncCntr encoderL, encoderR; //encoder Left pedal and Right pedal
@@ -62,6 +63,8 @@ void procDayLightFilter(short chNr, bool bLEDisON){
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
+      int tmpvalue = filterCH[chNr].getAverage();
+      derivativesCH[chNr].measurementIfMinChange(tmpvalue, 2);
     }
   }
 }
@@ -88,6 +91,9 @@ void setup() {
   bMuxDelay = false;
   bIR_LED_on = false;
   encoderL.setTo(0);
+  encoderL.setScalings(1,1,0,0);
+  encoderR.setTo(0);
+  encoderR.setScalings(1,1,0,0);
   //analogReference(DEFAULT);
   pinMode(A0, INPUT);
   pinMode(INP_0SWITCH_PULLUP,INPUT_PULLUP);
@@ -192,6 +198,11 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
+      dbugprint(derivativesCH[1].deriv1overLast4(0.1)); //dx is used as a scaling factor 10
+      dbugprint(";");
+      dbugprint(derivativesCH[1].deriv2overLast4(1.0) * 10);
+      dbugprint(";");
+      
       encoderL_Result = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
       encoderR_Result = encoderR.calc((int)filtValue[3], (int)filtValue[4]);
   
@@ -216,8 +227,8 @@ void loop() {
         Serial.print(filterA.getNbrMeas());
       #endif
 
-      minRPedal = -1000;
-      maxRPedal = 1000;
+      minRPedal = -250; //TODO   -1000;
+      maxRPedal = 250; //TODO   1000;
       #if PWMON == 1 && SER2TXONLY == 0
         int pwmscaled = constrain(map(encoderL_Result, minRPedal, maxRPedal, 10 , 245), 10, 245);
         digitalWrite(PIN_PWM_OUT, pwmscaled);
@@ -226,7 +237,8 @@ void loop() {
         //digitalWrite(PIN_PWM_OUT, map(encoderL_Result, minRPedal, maxRPedal, 10 , 245));
       #endif
       #if SER2TXONLY ==1 && PWMON == 0
-        int serscaled = constrain(map((encoderL_Result - encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
+        //TODO: int serscaled = constrain(map((encoderL_Result + encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
+        int serscaled = constrain(map((encoderL_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
         Serial1.write(serscaled);
       #endif
       
@@ -262,6 +274,7 @@ void loop() {
           cnt0swtch++;
           if(cnt0swtch > 200){  //min 200 cycles on(aprox. 2ms each, results in aprox. 350-500ms )
             encoderL.setTo(0);
+            encoderR.setTo(0);
             cnt0swtch = 10001;
           }
         }

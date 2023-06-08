@@ -184,8 +184,9 @@ int CSinIncCntr::m__SinInterpolMinMax(int min, int max, int actval, int resoluti
 }
 
 int CSinIncCntr::calc(int actCh1, int actCh2){
-    //TODO provisionaly amplifying ch2
-    //actCh1 = (actCh1 - 93) * 2 + 93;
+    //amplifying channels
+    actCh1 = (int)(((float)actCh1 - m__Ch1MinLevel) * m__Ch1Factor + m__Ch1MinLevel);
+    actCh2 = (int)(((float)actCh2 - m__Ch2MinLevel) * m__Ch2Factor + m__Ch2MinLevel);
 
     //calculate sum of both channels the help determine counting direction
     m__sum = actCh1 + actCh2;   
@@ -312,6 +313,13 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
 
     return m__actPos;
 } 
+
+void CSinIncCntr::setScalings(float Ch1_fact, float Ch2_fact, float Ch1_minLev, float Ch2_minLev){
+    m__Ch1Factor = Ch1_fact;
+    m__Ch2Factor = Ch2_fact;
+    m__Ch1MinLevel = Ch1_minLev;
+    m__Ch2MinLevel = Ch2_minLev;
+}
 
 int CSinIncCntr::read(){
     return m__actPos;
