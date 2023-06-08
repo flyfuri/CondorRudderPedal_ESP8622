@@ -27,7 +27,9 @@ class CFilterAnalogBase {  //base class
     virtual ~CFilterAnalogBase();
     int reset(); //reset fiter to 0    
     virtual int measurement(int &measureToAdd) = 0; //adds a measurement to buffer and returns average
-    int getAverage(); //just average
+    int measurementIfMinChange(int &measureToAdd, int minChange); //add a measurement only when differs minimal to last measurement and return average
+    int getAverage(); //just average (rounded integer)
+    double getAverageDbl(); //get average in double precicion
     unsigned int getNbrMeas();
     int calcMinMax (bool return_max = false); //calculate maximum and minimum and return the choosen (default: false = minimum) 
     int getMin(); //minima calculated (must be called after calcMinMax, otherwise potentially outdated)
@@ -44,8 +46,8 @@ class CFilterAnalogOverTime : public CFilterAnalogBase {  //class filtering over
     CFilterAnalogOverTime();  
     CFilterAnalogOverTime(unsigned long targfilttime_micros); //buffer size set to 1000
     CFilterAnalogOverTime(unsigned int buffersize, unsigned long targfilttime_micros);     
-    int measurement(int &measureToAdd);
-    unsigned long setgetTargfiltT_micros (unsigned long targfilttime_micros);
+    int measurement(int &measureToAdd); //add a measurement and return average over time
+    unsigned long setgetTargfiltT_micros (unsigned long targfilttime_micros); //set 
 };
 
 class CFilterAnalogOverMeasures : public CFilterAnalogBase {  //class filtering over given time
@@ -56,7 +58,9 @@ class CFilterAnalogOverMeasures : public CFilterAnalogBase {  //class filtering 
     CFilterAnalogOverMeasures();  
     CFilterAnalogOverMeasures(unsigned int buffersize); //targMeasNbrs will be set to same value
     CFilterAnalogOverMeasures(unsigned int buffersize, int targMeasNbrs);     
-    int measurement(int &measureToAdd);
-    int setgetTargetMeasures (unsigned int targMeasNbrs);
+    int measurement(int &measureToAdd);  //add a measurement and return average over target number of measurements
+    int setgetTargetMeasures (unsigned int targMeasNbrs); //set over how many measures the average shall be taken (if 0, just de actual setting is returned)
+    double deriv1overLast4(double dy=1); //first derivative over last 5 measures f_x = (-2*f[i-3]+9*f[i-2]-18*f[i-1]+11*f[i+0])/(6*1.0*h**1) from https://web.media.mit.edu/~crtaylor/calculator.html
+    double deriv2overLast4(double dy=1); //second derivaive over last 5 measures f_xx = (-1*f[i-3]+4*f[i-2]-5*f[i-1]+2*f[i+0])/(1*1.0*h**2) from https://web.media.mit.edu/~crtaylor/calculator.html
 };
 }

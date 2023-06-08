@@ -83,6 +83,15 @@ int CFilterAnalogBase::getAverage(){ //just average
   return m__average();
 }
 
+double CFilterAnalogBase::getAverageDbl(){ //just average
+  if (m__nbr_meas == 0){
+    return 0;
+  }
+  else{
+    return (double)m__total / (double)m__nbr_meas;
+  }
+}
+
 int CFilterAnalogBase::calcMinMax (bool return_max){
     m__max = 0;
     m__min = 0;
@@ -111,6 +120,16 @@ int CFilterAnalogBase::getMin(){
 
 int CFilterAnalogBase::getMax(){
   return m__max;
+}
+
+int CFilterAnalogBase::measurementIfMinChange(int &measureToAdd, int minChange){
+  m__rawMeas* ptrlastMeas = (m__PntrNewest == m__bf? m__bf + m__bf_length : m__PntrNewest - 1);
+  if(abs(ptrlastMeas->value - measureToAdd) >= minChange){
+    return measurement(measureToAdd);
+  }
+  else{
+    return m__average();
+  } 
 }
 
 unsigned int CFilterAnalogBase::getNbrMeas(){
@@ -200,5 +219,31 @@ int CFilterAnalogOverMeasures::setgetTargetMeasures (unsigned int targMeasNbrs){
         m__filterNbrMeasures = targMeasNbrs;
     }
     return m__filterNbrMeasures;
+}
+
+double CFilterAnalogOverMeasures::deriv1overLast4(double dy){ //first derivative over last 4 measures f_x = (-2*f[i-3]+9*f[i-2]-18*f[i-1]+11*f[i+0])/(6*1.0*h**1) from https://web.media.mit.edu/~crtaylor/calculator.html
+  if(m__nbr_meas >= 4){
+    m__rawMeas* ptr_Im0 = (m__PntrNewest == m__bf? m__bf + m__bf_length -1 : m__PntrNewest - 1);
+    m__rawMeas* ptr_Im1 = (ptr_Im0 == m__bf? m__bf + m__bf_length -1 : ptr_Im0 - 1);
+    m__rawMeas* ptr_Im2 = (ptr_Im1 == m__bf? m__bf + m__bf_length -1 : ptr_Im1 - 1);
+    m__rawMeas* ptr_Im3 = (ptr_Im2 == m__bf? m__bf + m__bf_length -1 : ptr_Im2 - 1);
+    return (-2*(double)ptr_Im3->value + 9*(double)ptr_Im2->value - 18*(double)ptr_Im1->value + 11*(double)ptr_Im0->value)/(6 * dy);
+  }
+  else{
+    return 0.0;
+  }
+}
+
+double CFilterAnalogOverMeasures::deriv2overLast4(double dy){ //second derivaive over last 4 measures f_xx = (-1*f[i-3]+4*f[i-2]-5*f[i-1]+2*f[i+0])/(1*1.0*h**2) from https://web.media.mit.edu/~crtaylor/calculator.html
+  if(m__nbr_meas >= 4){
+      m__rawMeas* ptr_Im0 = (m__PntrNewest == m__bf? m__bf + m__bf_length -1 : m__PntrNewest - 1);
+      m__rawMeas* ptr_Im1 = (ptr_Im0 == m__bf? m__bf + m__bf_length -1 : ptr_Im0 - 1);
+      m__rawMeas* ptr_Im2 = (ptr_Im1 == m__bf? m__bf + m__bf_length -1 : ptr_Im1 - 1);
+      m__rawMeas* ptr_Im3 = (ptr_Im2 == m__bf? m__bf + m__bf_length -1 : ptr_Im2 - 1);
+    return (-1*(double)ptr_Im3->value + 4*(double)ptr_Im2->value - 5*(double)ptr_Im1->value + 2*(double)ptr_Im0->value)/(2 * dy * dy);
+  }
+  else{
+    return 0.0;
+  }
 }
 }
