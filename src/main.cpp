@@ -18,7 +18,7 @@ int i_clk; //counters: loopclock,measures CH1 measures CH2
 int resetADC;
 int daylightDist[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc (measure daylight desturbance by measure without LED activated)
 int analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
-float filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
+int filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
 int encoderL_Result; //encoder LeftPedal Channel 1 and 2 
 int encoderR_Result; //encoder RightPedal Channel 3 and 4 
 unsigned long t_lastcycl, t_now; //measure cycle time
@@ -26,8 +26,8 @@ int outputRudder;
 uint8_t out8BitRudder;
 int cnt0swtch = 0; //counter to "filter" zero switch
 
-ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1, 1}, {1000, 4000}, {1000, 4000}, {1000, 4000}, {1000, 4000} }; //0 = not used, 1=Ch1, 2=Ch2, ...
-ANFLTR::CFilterAnalogOverMeasures derivativesCH[5] = {{1, 1}, {6, 6}, {6, 6}, {6, 6}, {6, 6} }; //0 = not used, 1=Ch1, 2=Ch2, ...
+ANFLTR::CFilterAnalogOverTime<int> filterCH[5] = {{1, 1}, {1000, 4000}, {1000, 4000}, {1000, 4000}, {1000, 4000} }; //0 = not used, 1=Ch1, 2=Ch2, ...
+ANFLTR::CFilterAnalogOverMeasures<double> derivativesCH[5] = {{1, 1}, {6, 6}, {6, 6}, {6, 6}, {6, 6} }; //0 = not used, 1=Ch1, 2=Ch2, ...
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
 TIMER::CTimerMicros TimerMux, TimerIRonOff;
 CSinIncCntr encoderL, encoderR; //encoder Left pedal and Right pedal
@@ -60,11 +60,11 @@ void procDayLightFilter(short chNr, bool bLEDisON){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; //A1: right pedal 772..118
       filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
+      double tmpvalue = filterCH[chNr].getAverageDbl();
+      derivativesCH[chNr].measurementIfMinChange(tmpvalue, 0.8);
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
-      int tmpvalue = filterCH[chNr].getAverage();
-      derivativesCH[chNr].measurementIfMinChange(tmpvalue, 2);
     }
   }
 }
@@ -198,11 +198,16 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
-      dbugprint(derivativesCH[1].deriv1overLast4(0.1)); //dx is used as a scaling factor 10
+      dbugprint(derivativesCH[1].deriv1overLastNbr(2, 0.1)); //dx is used as a scaling factor 10
       dbugprint(";");
-      dbugprint(derivativesCH[1].deriv2overLast4(1.0) * 10);
+      dbugprint(derivativesCH[1].deriv2overLastNbr(3, 1.0) * 10);
       dbugprint(";");
       
+      dbugprint(derivativesCH[2].deriv1overLastNbr(2, 0.1)); //dx is used as a scaling factor 10
+      dbugprint(";");
+      dbugprint(derivativesCH[2].deriv2overLastNbr(3, 1.0) * 10);
+      dbugprint(";");
+
       encoderL_Result = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
       encoderR_Result = encoderR.calc((int)filtValue[3], (int)filtValue[4]);
   
