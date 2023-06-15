@@ -1,8 +1,10 @@
 //sinusoid increment counter (encoder).cpp
 
-#include "SinusoidIncCounter.h"
+#include <SinusoidIncCounter.h>
+#include <Teethmemory.h>
 #include "math.h"
 #include "Arduino.h"
+
 
 #define _USE_MATH_DEFINES
 
@@ -33,33 +35,9 @@ CSinIncCntr::CSinIncCntr(){
     m__actStatusSUM = 0; 
     m__sumAtPowerON = -9999; 
     m__offset = -9999;
-    for(int i = 0; i < NBR_TEETH_ON_RACK  * 2; i++){
-        for(int ii = 0; ii < NBR_TO_AVR_IND_TOOTH; ii++){
-            teethrack[i].halft_min[ii]=0;
-            teethrack[i].halft_max[ii]=0;
-        }
-        teethrack[i].minAv=0;
-        teethrack[i].maxAv=0;
-        teethrack[i].halftMin_index=0;
-        teethrack[i].halftMax_index=0;
-    }
 }
 
-bool CSinIncCntr::m__calcActIndexTeethrack(){
-    int tempTeethindex = NBR_TEETH_ON_RACK + m__actHalfTooth;
-    if(tempTeethindex < 0){
-        m__actIndexTeethrack = 0;
-        return false;
-    } 
-    else if (tempTeethindex >= NBR_TEETH_ON_RACK * 2){
-        m__actIndexTeethrack = (NBR_TEETH_ON_RACK * 2) -1;
-        return false;
-    }
-    else{
-        m__actIndexTeethrack = tempTeethindex;
-        return true;
-    }
-}
+
 
 int CSinIncCntr::m__calcSumMid(){
     
@@ -107,56 +85,6 @@ int CSinIncCntr::m__calcSumMid(){
         }
     else{
         return 0;
-    }
-}
-
-int CSinIncCntr::m__addCalcMinAv(int halftooth, int valueToAdd){ //add and calc average Min for given half-tooth
-    if(m__calcActIndexTeethrack()){ 
-        teethrack[m__actIndexTeethrack].halft_min[teethrack[m__actIndexTeethrack].halftMin_index] = valueToAdd;
-        if (++(teethrack[m__actIndexTeethrack].halftMin_index) >= NBR_TO_AVR_IND_TOOTH ) //move index for next measure to replace
-            teethrack[m__actIndexTeethrack].halftMin_index = 0;
-    }
-    
-    int temptotal = 0;
-    int tempNbrsToAv = NBR_TO_AVR_IND_TOOTH;
-    for(int i = 0; i < NBR_TO_AVR_IND_TOOTH; i++){  //calc average
-        if(teethrack[m__actIndexTeethrack].halft_min[i] > 0){
-            temptotal += teethrack[m__actIndexTeethrack].halft_min[i];
-        }
-        else if (tempNbrsToAv > 1){ //don't go lower than 1 to avoid later DIV0
-            tempNbrsToAv--;
-        }
-    }
-    if (temptotal > 0){
-        return teethrack[m__actIndexTeethrack].minAv = temptotal / tempNbrsToAv;
-    }
-    else{
-        return teethrack[m__actIndexTeethrack].minAv;
-    }
-}
-
-int CSinIncCntr::m__addCalcMaxAv(int halftooth, int valueToAdd){ //add and calc average Max for given half-tooth  
-     if(m__calcActIndexTeethrack()){ 
-        teethrack[m__actIndexTeethrack].halft_max[teethrack[m__actIndexTeethrack].halftMax_index] = valueToAdd;
-        if (++(teethrack[m__actIndexTeethrack].halftMax_index) >= NBR_TO_AVR_IND_TOOTH ) //move index for next measure to replace
-            teethrack[m__actIndexTeethrack].halftMax_index = 0;
-    }
-    
-    int temptotal = 0;
-    int tempNbrsToAv = NBR_TO_AVR_IND_TOOTH;
-    for(int i = 0; i < NBR_TO_AVR_IND_TOOTH; i++){  //calc average
-        if(teethrack[m__actIndexTeethrack].halft_max[i] > 0){
-            temptotal += teethrack[m__actIndexTeethrack].halft_max[i];
-        }
-        else if (tempNbrsToAv > 1){ //don't go lower than 1 to avoid later DIV0
-            tempNbrsToAv--;
-        }
-    }
-    if (temptotal > 0){
-        return teethrack[m__actIndexTeethrack].maxAv = temptotal / tempNbrsToAv;
-    }
-    else{
-        return teethrack[m__actIndexTeethrack].maxAv;
     }
 }
 
@@ -211,23 +139,23 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
             if(m__sum >= m__sumMidLine) //sub FALLING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MAX)
             {   
                 if(m__sumOnLastCrossing < m__sumMidLine){    
-                    m__addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
+                    TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth--;
-                if(m__calcActIndexTeethrack()){
-                    m__intpolMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
-                    m__intpolMin = teethrack[m__actIndexTeethrack].minAv;
+                if(TeethMem_Sum.calcActIndexTeethrack(m__actHalfTooth, m__actIndexTeethrack)){
+                    m__intpolMax = TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sum);
+                    m__intpolMin = TeethMem_Sum.teethrack[m__actIndexTeethrack].minAv;
                 }
             }
             else //sub FALLING sum at MIN (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MIN)
             {
                 if(m__sumOnLastCrossing >= m__sumMidLine){    
-                        m__addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
+                        TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth++;
-                if(m__calcActIndexTeethrack()){
-                    m__intpolMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
-                    m__intpolMax = teethrack[m__actIndexTeethrack].maxAv;
+                if(TeethMem_Sum.calcActIndexTeethrack(m__actHalfTooth, m__actIndexTeethrack)){
+                    m__intpolMin = TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sum);
+                    m__intpolMax = TeethMem_Sum.teethrack[m__actIndexTeethrack].maxAv;
                 }
             } 
         }
@@ -239,20 +167,20 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
             if(m__sum >= m__sumMidLine)//sub RISING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MAX)
             {   
                 if(m__sumOnLastCrossing < m__sumMidLine){    
-                    m__addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
+                    TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth++;
-                m__intpolMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
-                m__intpolMin = teethrack[m__actIndexTeethrack].minAv;
+                m__intpolMax = TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sum);
+                m__intpolMin = TeethMem_Sum.teethrack[m__actIndexTeethrack].minAv;
             }
             else //sub RISING sum at MIN  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MIN)
             {
                 if(m__sumOnLastCrossing >= m__sumMidLine){    
-                        m__addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
+                        TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth--;
-                m__intpolMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
-                m__intpolMax = teethrack[m__actIndexTeethrack].maxAv;
+                m__intpolMin = TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sum);
+                m__intpolMax = TeethMem_Sum.teethrack[m__actIndexTeethrack].maxAv;
             }
         }
         m__sumOnLastCrossing = m__sum;

@@ -91,9 +91,6 @@ void setup() {
   bMuxDelay = false;
   bIR_LED_on = false;
   encoderL.setTo(0);
-  encoderL.setScalings(1,1,0,0);
-  encoderR.setTo(0);
-  encoderR.setScalings(1,1,0,0);
   //analogReference(DEFAULT);
   pinMode(A0, INPUT);
   pinMode(INP_0SWITCH_PULLUP,INPUT_PULLUP);
@@ -198,11 +195,8 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
-      dbugprint(derivativesCH[1].deriv1overLast4(0.1)); //dx is used as a scaling factor 10
-      dbugprint(";");
-      dbugprint(derivativesCH[1].deriv2overLast4(1.0) * 10);
-      dbugprint(";");
-      
+      encoderL.setScalings(1,2,29,29);
+      encoderR.setScalings(1,2,30,29);
       encoderL_Result = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
       encoderR_Result = encoderR.calc((int)filtValue[3], (int)filtValue[4]);
   
@@ -237,8 +231,7 @@ void loop() {
         //digitalWrite(PIN_PWM_OUT, map(encoderL_Result, minRPedal, maxRPedal, 10 , 245));
       #endif
       #if SER2TXONLY ==1 && PWMON == 0
-        //TODO: int serscaled = constrain(map((encoderL_Result + encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
-        int serscaled = constrain(map((encoderL_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
+        int serscaled = constrain(map((encoderL_Result - encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
         Serial1.write(serscaled);
       #endif
       
