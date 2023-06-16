@@ -1,7 +1,23 @@
+/* this class serves to memorize mins and maxs of the curve along the toothed rail
+    how the memory is organized
+                   *
+                 *   *
+               *      *
+    *         *        *
+     *       *          *
+       *   *              *   *
+         *                  *
+    -1 ->|<- 0   ->|<- 1  ->|<-  2      half-tooth enumeration
+         |         |        |
+      min(-1)    max(0)   min(1)        odd min, even max, 
+      min(0)     max(1)   min(2)        even min, odd max,
+       **+0      **+1     **+2          index in memory array, ** = NBR_TEETH_ON_RACK (array is double the size)
+*/
+
 #pragma once
 #include <TeethMemory.h>
 
-CTeethMemory::CTeethMemory(){
+template <typename T> CTeethMemory<T>::CTeethMemory(){
     for(int i = 0; i < NBR_TEETH_ON_RACK  * 2; i++){
         for(int ii = 0; ii < NBR_TO_AVR_IND_TOOTH; ii++){
             teethrack[i].halft_min[ii]=0;
@@ -14,7 +30,7 @@ CTeethMemory::CTeethMemory(){
     }
 }
 
-bool CTeethMemory::calcActIndexTeethrack(int halftooth, int &calculatedIndex){
+template <typename T> bool CTeethMemory<T>::calcActIndexTeethrack(int halftooth, int &calculatedIndex){
     int tempTeethindex = NBR_TEETH_ON_RACK + halftooth;
     if(tempTeethindex < 0){
         calculatedIndex = 0;
@@ -30,7 +46,7 @@ bool CTeethMemory::calcActIndexTeethrack(int halftooth, int &calculatedIndex){
     }
 }
 
-int CTeethMemory::addCalcMinAv(int halftooth, int valueToAdd){ //add and calc average Min for given half-tooth
+template <typename T> T CTeethMemory<T>::addCalcMinAv(int halftooth, T valueToAdd){ //add and calc average Min for given half-tooth
     int tempTeethIndex;
     if(calcActIndexTeethrack(halftooth, tempTeethIndex)){ 
         teethrack[tempTeethIndex].halft_min[teethrack[tempTeethIndex].halftMin_index] = valueToAdd;
@@ -38,7 +54,7 @@ int CTeethMemory::addCalcMinAv(int halftooth, int valueToAdd){ //add and calc av
             teethrack[tempTeethIndex].halftMin_index = 0;
     }
     
-    int temptotal = 0;
+    T temptotal = 0;
     int tempNbrsToAv = NBR_TO_AVR_IND_TOOTH;
     for(int i = 0; i < NBR_TO_AVR_IND_TOOTH; i++){  //calc average
         if(teethrack[tempTeethIndex].halft_min[i] > 0){
@@ -56,7 +72,7 @@ int CTeethMemory::addCalcMinAv(int halftooth, int valueToAdd){ //add and calc av
     }
 }
 
-int CTeethMemory::addCalcMaxAv(int halftooth, int valueToAdd){ //add and calc average Max for given half-tooth 
+template <typename T> T CTeethMemory<T>::addCalcMaxAv(int halftooth, T valueToAdd){ //add and calc average Max for given half-tooth 
     int tempTeethIndex;
      if(calcActIndexTeethrack(halftooth, tempTeethIndex)){ 
         teethrack[tempTeethIndex].halft_max[teethrack[tempTeethIndex].halftMax_index] = valueToAdd;
@@ -64,7 +80,7 @@ int CTeethMemory::addCalcMaxAv(int halftooth, int valueToAdd){ //add and calc av
             teethrack[tempTeethIndex].halftMax_index = 0;
     }
     
-    int temptotal = 0;
+    T temptotal = 0;
     int tempNbrsToAv = NBR_TO_AVR_IND_TOOTH;
     for(int i = 0; i < NBR_TO_AVR_IND_TOOTH; i++){  //calc average
         if(teethrack[tempTeethIndex].halft_max[i] > 0){

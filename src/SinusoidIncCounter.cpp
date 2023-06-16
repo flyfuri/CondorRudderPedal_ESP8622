@@ -38,7 +38,6 @@ CSinIncCntr::CSinIncCntr(){
 }
 
 
-
 int CSinIncCntr::m__calcSumMid(){
     
     int tempCrsDiff = m__sum - m__sumOnLastCrossing;

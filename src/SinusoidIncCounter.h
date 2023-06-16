@@ -28,7 +28,7 @@ class CSinIncCntr{
         //bool m__initialSumMidFound; //initial sum middle line has been found
 
         //used for interpolation beetween flank counts to increse resolution 
-        CTeethMemory TeethMem_Sum;   
+        CTeethMemory<int> TeethMem_Sum;   
 
         int m__actIndexTeethrack; 
         int m__intpolMax;  //actual Max used for interpolation
