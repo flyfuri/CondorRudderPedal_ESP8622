@@ -9,7 +9,7 @@
 #define _USE_MATH_DEFINES
 
 #ifndef DEBGOUT
-    #define DEBGOUT 99  //if this is 99 dbugprints will be active
+    #define DEBGOUT 0  //if this is 99 dbugprints will be active
 #endif
 
 #if DEBGOUT == 99
@@ -141,9 +141,9 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
                     TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth--;
-                if(TeethMem_Sum.calcActIndexTeethrack(m__actHalfTooth, m__actIndexTeethrack)){
+                if(TeethMem_Sum.calcMemIndexForMax(m__actHalfTooth, m__actIndexTeethrack)){
                     m__intpolMax = TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sum);
-                    m__intpolMin = TeethMem_Sum.teethrack[m__actIndexTeethrack].minAv;
+                    m__intpolMin = TeethMem_Sum.getMinAv(m__actHalfTooth);
                 }
             }
             else //sub FALLING sum at MIN (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MIN)
@@ -152,9 +152,9 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
                         TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth++;
-                if(TeethMem_Sum.calcActIndexTeethrack(m__actHalfTooth, m__actIndexTeethrack)){
+                if(TeethMem_Sum.calcMemIndexForMin(m__actHalfTooth, m__actIndexTeethrack)){
                     m__intpolMin = TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sum);
-                    m__intpolMax = TeethMem_Sum.teethrack[m__actIndexTeethrack].maxAv;
+                    m__intpolMax = TeethMem_Sum.getMaxAv(m__actHalfTooth);
                 }
             } 
         }
@@ -166,28 +166,28 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
             if(m__sum >= m__sumMidLine)//sub RISING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MAX)
             {   
                 if(m__sumOnLastCrossing < m__sumMidLine){    
-                    TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
+                    TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth++;
                 m__intpolMax = TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sum);
-                m__intpolMin = TeethMem_Sum.teethrack[m__actIndexTeethrack].minAv;
+                m__intpolMin = TeethMem_Sum.getMinAv(m__actHalfTooth);
             }
             else //sub RISING sum at MIN  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MIN)
             {
                 if(m__sumOnLastCrossing >= m__sumMidLine){    
-                        TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
+                        TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth--;
                 m__intpolMin = TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sum);
-                m__intpolMax = TeethMem_Sum.teethrack[m__actIndexTeethrack].maxAv;
+                m__intpolMax = TeethMem_Sum.getMaxAv(m__actHalfTooth);
             }
         }
         m__sumOnLastCrossing = m__sum;
         m__actStatusSUB = 1; //always to do when sub crossing zero line!
     }
     /*else{
-        m__intpolMax = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
-        m__intpolMin = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
+        m__intpolMax = toothedrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
+        m__intpolMin = toothedrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
     } */
     if (m__sumMidLine != 0){
         int tempIntpol = m__SinInterpolMinMax(m__intpolMin, m__intpolMax, m__sum, INTPOLRES);
@@ -206,17 +206,17 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
         m__actPos = tmpActPos + m__offset;
     }
 
-
+    
     dbugprint(m__actPos);     
     dbugprint(";");
-    /*dbugprint(m__intpolMin);      
-    dbugprint(";");
-    dbugprint(m__intpolMax);    
-    dbugprint(";");
-    dbugprint(teethrack[m__actIndexTeethrack].halftMax_index);      
-    dbugprint(";");
-    dbugprint(teethrack[m__actIndexTeethrack].halftMin_index);      
-    dbugprint(";");*/
+    //dbugprint(m__intpolMin);      
+    //dbugprint(";");
+    //dbugprint(m__intpolMax);    
+    //dbugprint(";");
+    //dbugprint(toothedrack[m__actIndexTeethrack].halftMax_index);      
+    //dbugprint(";");
+    //dbugprint(toothedrack[m__actIndexTeethrack].halftMin_index);      
+    //dbugprint(";");
     dbugprint(m__actHalfTooth);      
     dbugprint(";");
     dbugprint(m__offset);     

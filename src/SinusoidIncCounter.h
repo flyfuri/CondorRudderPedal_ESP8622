@@ -1,3 +1,4 @@
+#pragma once
 
 #include <analog_filter.h>
 #include <TeethMemory.h>

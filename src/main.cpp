@@ -2,6 +2,7 @@
 #include <timer.h>
 #include <analog_filter.h>
 #include <SinusoidIncCounter.h>
+#include <ChannelPairScaler.h>  
 #include <IO_wiring.h>
 #include <ESP8266WiFi.h>
 
@@ -29,6 +30,8 @@ int cnt0swtch = 0; //counter to "filter" zero switch
 ANFLTR::CFilterAnalogOverTime<int> filterCH[5] = {{1, 1}, {1000, 4000}, {1000, 4000}, {1000, 4000}, {1000, 4000} }; //0 = not used, 1=Ch1, 2=Ch2, ...
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
 TIMER::CTimerMicros TimerMux, TimerIRonOff;
+CSinCosScaler<double> encoderScalerL = {29,100}; //channel scaler for encoder Left
+CSinCosScaler<double> encoderScalerR = {29,100}; //channel scaler for encoder Right
 CSinIncCntr encoderL, encoderR; //encoder Left pedal and Right pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
 float tempLPedal, tempRPedal;
@@ -59,7 +62,6 @@ void procDayLightFilter(short chNr, bool bLEDisON){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; //A1: right pedal 772..118
       filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
-      double tmpvalue = filterCH[chNr].getAverageDbl();
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
@@ -118,9 +120,9 @@ void setup() {
   #if DEBGCH == 5
     TimerMux.setTime(3000000);
   #else 
-    TimerMux.setTime(50);
+    TimerMux.setTime(40);
   #endif
-  TimerIRonOff.setTime(100);
+  TimerIRonOff.setTime(70);
 
   #if DEBGOUT != 0 //hitire max on 115200
     Serial.begin(460800, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200);
@@ -193,6 +195,7 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
+      encoderScalerL.calculate(filterCH[1].getAverageDbl(), filterCH[2].getAverageDbl());
       encoderL.setScalings(1,2,29,29);
       encoderR.setScalings(1,2,30,29);
       encoderL_Result = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
