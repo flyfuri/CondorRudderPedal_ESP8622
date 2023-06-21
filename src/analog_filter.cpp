@@ -3,6 +3,26 @@
 #include "analog_filter.h"
 #include "Arduino.h"
 
+#ifndef DEBGOUT
+    #define DEBGOUT 0  //if this is 99 dbugprints will be active
+#endif
+
+#if DEBGOUT == 99
+    #ifndef dbugprint
+        #define dbugprint(x) Serial.print(x)
+    #endif
+    #ifndef dbugprintln
+        #define dbugprintln(x) Serial.println(x)
+    #endif
+#else
+    #ifndef dbugprint
+        #define dbugprint(x)
+    #endif
+    #ifndef dbugprintln
+        #define dbugprintln(x)
+    #endif
+#endif
+
 namespace ANFLTR{
 
 //Base class implementations/////////////////////////////////////////////////////////////////////////
@@ -243,6 +263,16 @@ template <typename T> double CFilterAnalogOverMeasures<T>::deriv1overLastNbr(sho
     typename CFilterAnalogOverMeasures<T>::m__rawMeas* ptr_Im2 = (ptr_Im1 == this->m__bf? this->m__bf + this->m__bf_length -1 : ptr_Im1 - 1);
     typename CFilterAnalogOverMeasures<T>::m__rawMeas* ptr_Im3 = (ptr_Im2 == this->m__bf? this->m__bf + this->m__bf_length -1 : ptr_Im2 - 1); 
     typename CFilterAnalogOverMeasures<T>::m__rawMeas* ptr_Im4 = (ptr_Im3 == this->m__bf? this->m__bf + this->m__bf_length -1 : ptr_Im3 - 1);
+    dbugprint(ptr_Im0->value);
+    dbugprint(";");
+    dbugprint(ptr_Im1->value);
+    dbugprint(";");
+    dbugprint(ptr_Im2->value);
+    dbugprint(";");
+    dbugprint(ptr_Im3->value);
+    dbugprint(";");
+    dbugprint(ptr_Im4->value);
+    dbugprint(";");
     if(Nbr == 5 && this->m__nbr_meas >= Nbr){
       return (3*(double)ptr_Im4->value -16*(double)ptr_Im3->value + 36*(double)ptr_Im2->value - 48*(double)ptr_Im1->value + 25*(double)ptr_Im0->value)/(12 * dx); //formula last 5: f_x = (3*f[i-4]-16*f[i-3]+36*f[i-2]-48*f[i-1]+25*f[i+0])/(12*1.0*dx^1)
     }

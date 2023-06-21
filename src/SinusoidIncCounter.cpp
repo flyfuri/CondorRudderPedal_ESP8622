@@ -221,8 +221,8 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
     dbugprint(";");
     dbugprint(m__offset);     
     dbugprint(";");
-    dbugprint(m__sumAtPowerON);     
-    dbugprint(";");
+ //   dbugprint(m__sumAtPowerON);     
+ //   dbugprint(";");
     dbugprint(actCh1);     
     dbugprint(";");
     dbugprint(actCh2);    
@@ -233,10 +233,10 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
     dbugprint(";");
     dbugprint(m__sumMidLine);
     dbugprint(";");
-    dbugprint(m__sumOnLastCrossing);
+ /*   dbugprint(m__sumOnLastCrossing);
     dbugprint(";");
     dbugprint(m__actIndexTeethrack);
-    dbugprint(";");
+    dbugprint(";");*/
 
     return m__actPos;
 } 

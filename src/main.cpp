@@ -22,7 +22,7 @@ int analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
 int filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
 int encoderL_Result; //encoder LeftPedal Channel 1 and 2 
 int encoderR_Result; //encoder RightPedal Channel 3 and 4 
-unsigned long t_lastcycl, t_now; //measure cycle time
+unsigned long t_lastcycl, t_now, t_cycletime; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
 int cnt0swtch = 0; //counter to "filter" zero switch
@@ -61,7 +61,8 @@ void procDayLightFilter(short chNr, bool bLEDisON){
   if (chNr > 0 && chNr < 5){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; //A1: right pedal 772..118
-      filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
+      //filterCH[chNr].measurement(analogRaw[chNr]); //TODO
+      filtValue[chNr] = analogRaw[chNr]; //TODO: filterCH[chNr].measurement(analogRaw[chNr]);
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
@@ -137,13 +138,12 @@ void setup() {
     hat.gyro[1] = 0;
     hat.gyro[2] = 0;
     hat.acc[0] = 0;
-    hat.acc[1] = 0;
+    hat.acc[1] = 0; 
     hat.acc[2] = 0;
   #endif
 }
 
 void loop() {
-  
   if(TimerMux.evaluate(bMuxDelay)){
     bMuxDelay = false;
     TimerMux.evaluate(false);
@@ -195,7 +195,7 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
-      encoderScalerL.calculate(filterCH[1].getAverageDbl(), filterCH[2].getAverageDbl());
+      encoderScalerL.calculate((double)filtValue[1], (double)filtValue[2]); //TODO:(filterCH[1].getAverageDbl(), filterCH[2].getAverageDbl());
       encoderL.setScalings(1,2,29,29);
       encoderR.setScalings(1,2,30,29);
       encoderL_Result = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
@@ -279,11 +279,14 @@ void loop() {
 
       #if DEBGOUT != 0
         t_lastcycl = t_now;
-        t_now = micros();
+        do{
+          t_now = micros();
+          t_cycletime = t_now - t_lastcycl;
+        }while(t_cycletime < 2000);
         //Serial.print(";");
         Serial.print(serscaled);
         Serial.print(";");
-        Serial.println(t_now - t_lastcycl);
+        Serial.println(t_cycletime);
       #endif       
     }        
   }
