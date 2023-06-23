@@ -19,7 +19,7 @@ int i_clk; //counters: loopclock,measures CH1 measures CH2
 int resetADC;
 int daylightDist[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc (measure daylight desturbance by measure without LED activated)
 int analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
-int filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
+double filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
 int encoderL_Result; //encoder LeftPedal Channel 1 and 2 
 int encoderR_Result; //encoder RightPedal Channel 3 and 4 
 unsigned long t_lastcycl, t_now, t_cycletime; //measure cycle time
@@ -27,7 +27,48 @@ int outputRudder;
 uint8_t out8BitRudder;
 int cnt0swtch = 0; //counter to "filter" zero switch
 
-ANFLTR::CFilterAnalogOverTime<int> filterCH[5] = {{1, 1}, {1000, 4000}, {1000, 4000}, {1000, 4000}, {1000, 4000} }; //0 = not used, 1=Ch1, 2=Ch2, ...
+/*
+
+FIR filter designed with
+ http://t-filter.appspot.com
+
+sampling frequency: 500 Hz
+
+* 0 Hz - 25 Hz
+  gain = 1
+  desired ripple = 0.3 dB
+  actual ripple = 0.21136152134282105 dB
+
+* 50 Hz - 250 Hz
+  gain = 0
+  desired attenuation = -10 dB
+  actual attenuation = -10.432285778787778 dB
+
+*/ 
+
+double fIR_coeffs50Hz[19] = {  
+ 0.0627586643886608,
+  -0.12222370256950353,
+  -0.04281420095931241,
+  0.0014395248705389467,
+  0.03680784924975208,
+  0.07211067281702561,
+  0.10701048552005643,
+  0.13747140311396192,
+  0.15841429715237887,
+  0.16588366596682616,
+  0.15841429715237887,
+  0.13747140311396192,
+  0.10701048552005643,
+  0.07211067281702561,
+  0.03680784924975208,
+  0.0014395248705389467,
+  -0.04281420095931241,
+  -0.12222370256950353,
+  0.0627586643886608
+};
+
+ANFLTR::CFilterAnalogOverMeasures<int> filterCH[5] = {{1, 1}, {20, 20}, {20, 20}, {20, 20}, {20, 20} }; //0 = not used, 1=Ch1, 2=Ch2, ...
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
 TIMER::CTimerMicros TimerMux, TimerIRonOff;
 CSinCosScaler<double> encoderScalerL = {29,100}; //channel scaler for encoder Left
@@ -61,8 +102,9 @@ void procDayLightFilter(short chNr, bool bLEDisON){
   if (chNr > 0 && chNr < 5){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; //A1: right pedal 772..118
-      //filterCH[chNr].measurement(analogRaw[chNr]); //TODO
-      filtValue[chNr] = analogRaw[chNr]; //TODO: filterCH[chNr].measurement(analogRaw[chNr]);
+      filterCH[chNr].measurement(analogRaw[chNr]); //TODO
+      filtValue[chNr]=filterCH[chNr].calcFIRfiltered(fIR_coeffs50Hz, 15);
+      //filtValue[chNr] = analogRaw[chNr]; //TODO: filterCH[chNr].measurement(analogRaw[chNr]);
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);

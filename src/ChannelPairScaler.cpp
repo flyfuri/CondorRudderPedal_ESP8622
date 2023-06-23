@@ -44,10 +44,10 @@ template <typename T> bool CSinCosScaler<T>::calculate(T CH1, T CH2){
     double inCH1 = CH1;
     double inCH2 = CH2;
 
-    FirstDerivCH1.measurementIfMinChange(inCH1, 2);
-    FirstDerivCH2.measurementIfMinChange(inCH2, 2);
+    FirstDerivCH1.measurementIfMinChange(inCH1, 1);
+    FirstDerivCH2.measurementIfMinChange(inCH2, 1);
 
-    if(FirstDerivCH1.getNbrMeas() >= 3 && FirstDerivCH2.getNbrMeas() >= 3){
+    if(FirstDerivCH1.getNbrMeas() >= 2 && FirstDerivCH2.getNbrMeas() >= 2){
         //calc derivates
         double actDerivCHx = FirstDerivCH1.deriv1overLastNbr(2, 0.1);
         if (actDerivCHx != 0){

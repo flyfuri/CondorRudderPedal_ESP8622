@@ -9,7 +9,7 @@ class CFilterAnalogBase {  //base class
       T value;
       signed long tstamp;
     };
-    m__rawMeas* m__bf ; //buffer
+    m__rawMeas* m__bf = nullptr ; //buffer
     m__rawMeas* m__PntrNewest = m__bf; //rolling pointer newest valid value in buffer
     m__rawMeas* m__PntrOldest = m__bf; //rolling pointer oldest valid value in buffer
     unsigned int m__bf_length = 1000;  //buffer length (records)
@@ -17,7 +17,6 @@ class CFilterAnalogBase {  //base class
     unsigned int m__nbr_meas; //number of measurements added in total to avarage
     bool m__fcycdone; //buffer filled up cycle done
     T m__min, m__max; //highest and lowest value in the buffer 
-
     
     void m_init(unsigned int buffersize);
     void m__add(T &rawvalue, unsigned long &tstampNow); //add one measurement to total and buffer
@@ -28,6 +27,7 @@ class CFilterAnalogBase {  //base class
     CFilterAnalogBase(); 
     CFilterAnalogBase(unsigned int buffersize); 
     virtual ~CFilterAnalogBase();
+    bool initFIR();
     int reset(); //reset fiter to 0    
     virtual T measurement(T &measureToAdd) = 0; //adds a measurement to buffer and returns average
     T measurementIfMinChange(T &measureToAdd, T minChange); //add a measurement only when differs minimal to last measurement and return average
@@ -37,6 +37,7 @@ class CFilterAnalogBase {  //base class
     T calcMinMax (bool return_max = false); //calculate maximum and minimum and return the choosen (default: false = minimum) 
     T getMin(); //minima calculated (must be called after calcMinMax, otherwise potentially outdated)
     T getMax(); //get maxima calculated (must be called after calcMinMax, otherwise potentially outdated)
+    double calcFIRfiltered(double* fIRcoeffs, int fIRnbrOfCoeffs); //array and its length of FIR-filter coefficents (can be driven from: http://t-filter.engineerjs.com/)
 };
 
 
