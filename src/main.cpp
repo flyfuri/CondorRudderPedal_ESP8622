@@ -2,6 +2,7 @@
 #include <timer.h>
 #include <analog_filter.h>
 #include <SinusoidIncCounter.h>
+#include <ChannelPairScaler.h>  
 #include <IO_wiring.h>
 #include <ESP8266WiFi.h>
 
@@ -18,17 +19,60 @@ int i_clk; //counters: loopclock,measures CH1 measures CH2
 int resetADC;
 int daylightDist[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc (measure daylight desturbance by measure without LED activated)
 int analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
-float filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
+double filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
 int encoderL_Result; //encoder LeftPedal Channel 1 and 2 
 int encoderR_Result; //encoder RightPedal Channel 3 and 4 
-unsigned long t_lastcycl, t_now; //measure cycle time
+unsigned long t_lastcycl, t_now, t_cycletime; //measure cycle time
 int outputRudder;
 uint8_t out8BitRudder;
 int cnt0swtch = 0; //counter to "filter" zero switch
 
-ANFLTR::CFilterAnalogOverTime filterCH[5] = {{1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000}, {1000, 1000} }; //1=Ch1, 2=Ch2
+/*
+
+FIR filter designed with
+ http://t-filter.appspot.com
+
+sampling frequency: 500 Hz
+
+* 0 Hz - 25 Hz
+  gain = 1
+  desired ripple = 0.3 dB
+  actual ripple = 0.21136152134282105 dB
+
+* 50 Hz - 250 Hz
+  gain = 0
+  desired attenuation = -10 dB
+  actual attenuation = -10.432285778787778 dB
+
+*/ 
+
+double fIR_coeffs50Hz[19] = {  
+ 0.0627586643886608,
+  -0.12222370256950353,
+  -0.04281420095931241,
+  0.0014395248705389467,
+  0.03680784924975208,
+  0.07211067281702561,
+  0.10701048552005643,
+  0.13747140311396192,
+  0.15841429715237887,
+  0.16588366596682616,
+  0.15841429715237887,
+  0.13747140311396192,
+  0.10701048552005643,
+  0.07211067281702561,
+  0.03680784924975208,
+  0.0014395248705389467,
+  -0.04281420095931241,
+  -0.12222370256950353,
+  0.0627586643886608
+};
+
+ANFLTR::CFilterAnalogOverMeasures<int> filterCH[5] = {{1, 1}, {20, 20}, {20, 20}, {20, 20}, {20, 20} }; //0 = not used, 1=Ch1, 2=Ch2, ...
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
 TIMER::CTimerMicros TimerMux, TimerIRonOff;
+CSinCosScaler<double> encoderScalerL = {29,100}; //channel scaler for encoder Left
+CSinCosScaler<double> encoderScalerR = {29,100}; //channel scaler for encoder Right
 CSinIncCntr encoderL, encoderR; //encoder Left pedal and Right pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
 float tempLPedal, tempRPedal;
@@ -58,7 +102,9 @@ void procDayLightFilter(short chNr, bool bLEDisON){
   if (chNr > 0 && chNr < 5){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; //A1: right pedal 772..118
-      filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
+      filterCH[chNr].measurement(analogRaw[chNr]); //TODO
+      filtValue[chNr]=filterCH[chNr].calcFIRfiltered(fIR_coeffs50Hz, 15);
+      //filtValue[chNr] = analogRaw[chNr]; //TODO: filterCH[chNr].measurement(analogRaw[chNr]);
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
@@ -117,9 +163,9 @@ void setup() {
   #if DEBGCH == 5
     TimerMux.setTime(3000000);
   #else 
-    TimerMux.setTime(50);
+    TimerMux.setTime(40);
   #endif
-  TimerIRonOff.setTime(100);
+  TimerIRonOff.setTime(70);
 
   #if DEBGOUT != 0 //hitire max on 115200
     Serial.begin(460800, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200);
@@ -134,13 +180,12 @@ void setup() {
     hat.gyro[1] = 0;
     hat.gyro[2] = 0;
     hat.acc[0] = 0;
-    hat.acc[1] = 0;
+    hat.acc[1] = 0; 
     hat.acc[2] = 0;
   #endif
 }
 
 void loop() {
-  
   if(TimerMux.evaluate(bMuxDelay)){
     bMuxDelay = false;
     TimerMux.evaluate(false);
@@ -192,6 +237,9 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
+      encoderScalerL.calculate((double)filtValue[1], (double)filtValue[2]); //TODO:(filterCH[1].getAverageDbl(), filterCH[2].getAverageDbl());
+      encoderL.setScalings(1,2,29,29);
+      encoderR.setScalings(1,2,30,29);
       encoderL_Result = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
       encoderR_Result = encoderR.calc((int)filtValue[3], (int)filtValue[4]);
   
@@ -216,8 +264,8 @@ void loop() {
         Serial.print(filterA.getNbrMeas());
       #endif
 
-      minRPedal = -1000;
-      maxRPedal = 1000;
+      minRPedal = -250; //TODO   -1000;
+      maxRPedal = 250; //TODO   1000;
       #if PWMON == 1 && SER2TXONLY == 0
         int pwmscaled = constrain(map(encoderL_Result, minRPedal, maxRPedal, 10 , 245), 10, 245);
         digitalWrite(PIN_PWM_OUT, pwmscaled);
@@ -262,6 +310,7 @@ void loop() {
           cnt0swtch++;
           if(cnt0swtch > 200){  //min 200 cycles on(aprox. 2ms each, results in aprox. 350-500ms )
             encoderL.setTo(0);
+            encoderR.setTo(0);
             cnt0swtch = 10001;
           }
         }
@@ -272,11 +321,14 @@ void loop() {
 
       #if DEBGOUT != 0
         t_lastcycl = t_now;
-        t_now = micros();
+        do{
+          t_now = micros();
+          t_cycletime = t_now - t_lastcycl;
+        }while(t_cycletime < 2000);
         //Serial.print(";");
         Serial.print(serscaled);
         Serial.print(";");
-        Serial.println(t_now - t_lastcycl);
+        Serial.println(t_cycletime);
       #endif       
     }        
   }

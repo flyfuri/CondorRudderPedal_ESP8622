@@ -1,13 +1,15 @@
 //sinusoid increment counter (encoder).cpp
 
-#include "SinusoidIncCounter.h"
+#include <SinusoidIncCounter.h>
+#include <Teethmemory.h>
 #include "math.h"
 #include "Arduino.h"
+
 
 #define _USE_MATH_DEFINES
 
 #ifndef DEBGOUT
-    #define DEBGOUT 99  //if this is 99 dbugprints will be active
+    #define DEBGOUT 0  //if this is 99 dbugprints will be active
 #endif
 
 #if DEBGOUT == 99
@@ -33,33 +35,8 @@ CSinIncCntr::CSinIncCntr(){
     m__actStatusSUM = 0; 
     m__sumAtPowerON = -9999; 
     m__offset = -9999;
-    for(int i = 0; i < NBR_TEETH_ON_RACK  * 2; i++){
-        for(int ii = 0; ii < NBR_TO_AVR_IND_TOOTH; ii++){
-            teethrack[i].halft_min[ii]=0;
-            teethrack[i].halft_max[ii]=0;
-        }
-        teethrack[i].minAv=0;
-        teethrack[i].maxAv=0;
-        teethrack[i].halftMin_index=0;
-        teethrack[i].halftMax_index=0;
-    }
 }
 
-bool CSinIncCntr::m__calcActIndexTeethrack(){
-    int tempTeethindex = NBR_TEETH_ON_RACK + m__actHalfTooth;
-    if(tempTeethindex < 0){
-        m__actIndexTeethrack = 0;
-        return false;
-    } 
-    else if (tempTeethindex >= NBR_TEETH_ON_RACK * 2){
-        m__actIndexTeethrack = (NBR_TEETH_ON_RACK * 2) -1;
-        return false;
-    }
-    else{
-        m__actIndexTeethrack = tempTeethindex;
-        return true;
-    }
-}
 
 int CSinIncCntr::m__calcSumMid(){
     
@@ -110,56 +87,6 @@ int CSinIncCntr::m__calcSumMid(){
     }
 }
 
-int CSinIncCntr::m__addCalcMinAv(int halftooth, int valueToAdd){ //add and calc average Min for given half-tooth
-    if(m__calcActIndexTeethrack()){ 
-        teethrack[m__actIndexTeethrack].halft_min[teethrack[m__actIndexTeethrack].halftMin_index] = valueToAdd;
-        if (++(teethrack[m__actIndexTeethrack].halftMin_index) >= NBR_TO_AVR_IND_TOOTH ) //move index for next measure to replace
-            teethrack[m__actIndexTeethrack].halftMin_index = 0;
-    }
-    
-    int temptotal = 0;
-    int tempNbrsToAv = NBR_TO_AVR_IND_TOOTH;
-    for(int i = 0; i < NBR_TO_AVR_IND_TOOTH; i++){  //calc average
-        if(teethrack[m__actIndexTeethrack].halft_min[i] > 0){
-            temptotal += teethrack[m__actIndexTeethrack].halft_min[i];
-        }
-        else if (tempNbrsToAv > 1){ //don't go lower than 1 to avoid later DIV0
-            tempNbrsToAv--;
-        }
-    }
-    if (temptotal > 0){
-        return teethrack[m__actIndexTeethrack].minAv = temptotal / tempNbrsToAv;
-    }
-    else{
-        return teethrack[m__actIndexTeethrack].minAv;
-    }
-}
-
-int CSinIncCntr::m__addCalcMaxAv(int halftooth, int valueToAdd){ //add and calc average Max for given half-tooth  
-     if(m__calcActIndexTeethrack()){ 
-        teethrack[m__actIndexTeethrack].halft_max[teethrack[m__actIndexTeethrack].halftMax_index] = valueToAdd;
-        if (++(teethrack[m__actIndexTeethrack].halftMax_index) >= NBR_TO_AVR_IND_TOOTH ) //move index for next measure to replace
-            teethrack[m__actIndexTeethrack].halftMax_index = 0;
-    }
-    
-    int temptotal = 0;
-    int tempNbrsToAv = NBR_TO_AVR_IND_TOOTH;
-    for(int i = 0; i < NBR_TO_AVR_IND_TOOTH; i++){  //calc average
-        if(teethrack[m__actIndexTeethrack].halft_max[i] > 0){
-            temptotal += teethrack[m__actIndexTeethrack].halft_max[i];
-        }
-        else if (tempNbrsToAv > 1){ //don't go lower than 1 to avoid later DIV0
-            tempNbrsToAv--;
-        }
-    }
-    if (temptotal > 0){
-        return teethrack[m__actIndexTeethrack].maxAv = temptotal / tempNbrsToAv;
-    }
-    else{
-        return teethrack[m__actIndexTeethrack].maxAv;
-    }
-}
-
 int CSinIncCntr::m__SinInterpolMinMax(int min, int max, int actval, int resolution){
     if(max > 0 && min > 0){ //do only interpolate if some min and max is memorised already
         if(actval < min){
@@ -184,8 +111,9 @@ int CSinIncCntr::m__SinInterpolMinMax(int min, int max, int actval, int resoluti
 }
 
 int CSinIncCntr::calc(int actCh1, int actCh2){
-    //TODO provisionaly amplifying ch2
-    //actCh1 = (actCh1 - 93) * 2 + 93;
+    //amplifying channels
+    actCh1 = (int)(((float)actCh1 - m__Ch1MinLevel) * m__Ch1Factor + m__Ch1MinLevel);
+    actCh2 = (int)(((float)actCh2 - m__Ch2MinLevel) * m__Ch2Factor + m__Ch2MinLevel);
 
     //calculate sum of both channels the help determine counting direction
     m__sum = actCh1 + actCh2;   
@@ -210,23 +138,23 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
             if(m__sum >= m__sumMidLine) //sub FALLING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MAX)
             {   
                 if(m__sumOnLastCrossing < m__sumMidLine){    
-                    m__addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
+                    TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth--;
-                if(m__calcActIndexTeethrack()){
-                    m__intpolMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
-                    m__intpolMin = teethrack[m__actIndexTeethrack].minAv;
+                if(TeethMem_Sum.calcMemIndexForMax(m__actHalfTooth, m__actIndexTeethrack)){
+                    m__intpolMax = TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sum);
+                    m__intpolMin = TeethMem_Sum.getMinAv(m__actHalfTooth);
                 }
             }
             else //sub FALLING sum at MIN (channel lines are crossing: sub-curve crossing nullpoint FALLING with summary at MIN)
             {
                 if(m__sumOnLastCrossing >= m__sumMidLine){    
-                        m__addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
+                        TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth++;
-                if(m__calcActIndexTeethrack()){
-                    m__intpolMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
-                    m__intpolMax = teethrack[m__actIndexTeethrack].maxAv;
+                if(TeethMem_Sum.calcMemIndexForMin(m__actHalfTooth, m__actIndexTeethrack)){
+                    m__intpolMin = TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sum);
+                    m__intpolMax = TeethMem_Sum.getMaxAv(m__actHalfTooth);
                 }
             } 
         }
@@ -238,28 +166,28 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
             if(m__sum >= m__sumMidLine)//sub RISING sum at MAX  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MAX)
             {   
                 if(m__sumOnLastCrossing < m__sumMidLine){    
-                    m__addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
+                    TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth++;
-                m__intpolMax = m__addCalcMaxAv(m__actHalfTooth, m__sum);
-                m__intpolMin = teethrack[m__actIndexTeethrack].minAv;
+                m__intpolMax = TeethMem_Sum.addCalcMaxAv(m__actHalfTooth, m__sum);
+                m__intpolMin = TeethMem_Sum.getMinAv(m__actHalfTooth);
             }
             else //sub RISING sum at MIN  (channel lines are crossing: sub-curve crossing nullpoint RISING with summary at MIN)
             {
                 if(m__sumOnLastCrossing >= m__sumMidLine){    
-                        m__addCalcMaxAv(m__actHalfTooth, m__sumOnLastCrossing);
+                        TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sumOnLastCrossing);
                 }
                 m__actHalfTooth--;
-                m__intpolMin = m__addCalcMinAv(m__actHalfTooth, m__sum);
-                m__intpolMax = teethrack[m__actIndexTeethrack].maxAv;
+                m__intpolMin = TeethMem_Sum.addCalcMinAv(m__actHalfTooth, m__sum);
+                m__intpolMax = TeethMem_Sum.getMaxAv(m__actHalfTooth);
             }
         }
         m__sumOnLastCrossing = m__sum;
         m__actStatusSUB = 1; //always to do when sub crossing zero line!
     }
     /*else{
-        m__intpolMax = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
-        m__intpolMin = teethrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
+        m__intpolMax = toothedrack[NBR_TEETH_ON_RACK + m__actHalfTooth].maxAv;
+        m__intpolMin = toothedrack[NBR_TEETH_ON_RACK + m__actHalfTooth].minAv;
     } */
     if (m__sumMidLine != 0){
         int tempIntpol = m__SinInterpolMinMax(m__intpolMin, m__intpolMax, m__sum, INTPOLRES);
@@ -278,23 +206,23 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
         m__actPos = tmpActPos + m__offset;
     }
 
-
+    
     dbugprint(m__actPos);     
     dbugprint(";");
-    /*dbugprint(m__intpolMin);      
-    dbugprint(";");
-    dbugprint(m__intpolMax);    
-    dbugprint(";");
-    dbugprint(teethrack[m__actIndexTeethrack].halftMax_index);      
-    dbugprint(";");
-    dbugprint(teethrack[m__actIndexTeethrack].halftMin_index);      
-    dbugprint(";");*/
+    //dbugprint(m__intpolMin);      
+    //dbugprint(";");
+    //dbugprint(m__intpolMax);    
+    //dbugprint(";");
+    //dbugprint(toothedrack[m__actIndexTeethrack].halftMax_index);      
+    //dbugprint(";");
+    //dbugprint(toothedrack[m__actIndexTeethrack].halftMin_index);      
+    //dbugprint(";");
     dbugprint(m__actHalfTooth);      
     dbugprint(";");
     dbugprint(m__offset);     
     dbugprint(";");
-    dbugprint(m__sumAtPowerON);     
-    dbugprint(";");
+ //   dbugprint(m__sumAtPowerON);     
+ //   dbugprint(";");
     dbugprint(actCh1);     
     dbugprint(";");
     dbugprint(actCh2);    
@@ -305,13 +233,20 @@ int CSinIncCntr::calc(int actCh1, int actCh2){
     dbugprint(";");
     dbugprint(m__sumMidLine);
     dbugprint(";");
-    dbugprint(m__sumOnLastCrossing);
+ /*   dbugprint(m__sumOnLastCrossing);
     dbugprint(";");
     dbugprint(m__actIndexTeethrack);
-    dbugprint(";");
+    dbugprint(";");*/
 
     return m__actPos;
 } 
+
+void CSinIncCntr::setScalings(float Ch1_fact, float Ch2_fact, float Ch1_minLev, float Ch2_minLev){
+    m__Ch1Factor = Ch1_fact;
+    m__Ch2Factor = Ch2_fact;
+    m__Ch1MinLevel = Ch1_minLev;
+    m__Ch2MinLevel = Ch2_minLev;
+}
 
 int CSinIncCntr::read(){
     return m__actPos;
