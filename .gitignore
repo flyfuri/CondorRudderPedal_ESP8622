@@ -6,3 +6,4 @@
 .logs
 logs
 src/IO_wiring.h
+monitor/__pycache__
