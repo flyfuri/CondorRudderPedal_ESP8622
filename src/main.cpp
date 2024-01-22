@@ -19,7 +19,7 @@ int i_clk; //counters: loopclock,measures CH1 measures CH2
 int resetADC;
 int daylightDist[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc (measure daylight desturbance by measure without LED activated)
 int analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
-double filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
+//double filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
 int encoderL_Result; //encoder LeftPedal Channel 1 and 2 
 int encoderR_Result; //encoder RightPedal Channel 3 and 4 
 unsigned long t_lastcycl, t_now, t_cycletime; //measure cycle time
@@ -27,52 +27,12 @@ int outputRudder;
 uint8_t out8BitRudder;
 int cnt0swtch = 0; //counter to "filter" zero switch
 
-/*
-
-FIR filter designed with
- http://t-filter.appspot.com
-
-sampling frequency: 500 Hz
-
-* 0 Hz - 25 Hz
-  gain = 1
-  desired ripple = 0.3 dB
-  actual ripple = 0.21136152134282105 dB
-
-* 50 Hz - 250 Hz
-  gain = 0
-  desired attenuation = -10 dB
-  actual attenuation = -10.432285778787778 dB
-
-*/ 
-
-double fIR_coeffs50Hz[19] = {  
- 0.0627586643886608,
-  -0.12222370256950353,
-  -0.04281420095931241,
-  0.0014395248705389467,
-  0.03680784924975208,
-  0.07211067281702561,
-  0.10701048552005643,
-  0.13747140311396192,
-  0.15841429715237887,
-  0.16588366596682616,
-  0.15841429715237887,
-  0.13747140311396192,
-  0.10701048552005643,
-  0.07211067281702561,
-  0.03680784924975208,
-  0.0014395248705389467,
-  -0.04281420095931241,
-  -0.12222370256950353,
-  0.0627586643886608
-};
 
 ANFLTR::CFilterAnalogOverMeasures<int> filterCH[5] = {{1, 1}, {20, 20}, {20, 20}, {20, 20}, {20, 20} }; //0 = not used, 1=Ch1, 2=Ch2, ...
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
 TIMER::CTimerMicros TimerMux, TimerIRonOff;
-CSinCosScaler<double> encoderScalerL = {29,100}; //channel scaler for encoder Left
-CSinCosScaler<double> encoderScalerR = {29,100}; //channel scaler for encoder Right
+//CSinCosScaler<double> encoderScalerL = {29,100}; //channel scaler for encoder Left
+//CSinCosScaler<double> encoderScalerR = {29,100}; //channel scaler for encoder Right
 CSinIncCntr encoderL, encoderR; //encoder Left pedal and Right pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
 float tempLPedal, tempRPedal;
@@ -84,27 +44,13 @@ const int analogInPin = A0;  // ESP8266 Analog Pin ADC0 = A0
 
 int sensorValue = 0;  // value read from the pot
 
-// hatire struct read
-typedef struct  {
-  int16_t  Begin  ;   // 2  Debut
-  uint16_t Cpt ;      // 2  Compteur trame or Code
-  float    gyro[3];   // 12 [Y, P, R]    gyro
-  float    acc[3];    // 12 [x, y, z]    Acc
-  int16_t  End ;      // 2  Fin
-} tdef_hat;
-
-tdef_hat hat;
-
-
 
 //procedure read channel with daylight filter
 void procDayLightFilter(short chNr, bool bLEDisON){
   if (chNr > 0 && chNr < 5){
     if (bLEDisON){
-      analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; //A1: right pedal 772..118
-      filterCH[chNr].measurement(analogRaw[chNr]); //TODO
-      filtValue[chNr]=filterCH[chNr].calcFIRfiltered(fIR_coeffs50Hz, 15);
-      //filtValue[chNr] = analogRaw[chNr]; //TODO: filterCH[chNr].measurement(analogRaw[chNr]);
+      analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; 
+      filterCH[chNr].measurement(analogRaw[chNr]); 
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
@@ -116,8 +62,8 @@ void procDayLightFilter(short chNr, bool bLEDisON){
 void readChannel(short chNr, bool bLEDisON){
   if (chNr > 0 && chNr < 5){
     if (bLEDisON){
-      analogRaw[chNr] = analogRead(analogInPin); //A1: right pedal 772..118
-      filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
+      analogRaw[chNr] = analogRead(analogInPin); 
+      //filtValue[chNr] = filterCH[chNr].measurement(analogRaw[chNr]);
     }
   }
 }
@@ -148,17 +94,8 @@ void setup() {
   digitalWrite(ACT_MUX_CH4, LOW);
   bIR_LED_on = false;
   digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);
-  #if SER2TXONLY == 0
-    pinMode(LED_BUILTIN, OUTPUT); //same as GPOI2 and also Serial1!
-    digitalWrite(LED_BUILTIN, LOW);
-  #endif
-  #if PWMON == 1 && SER2TXONLY == 0
-    pinMode(PIN_PWM_OUT, OUTPUT);
-    digitalWrite(PIN_PWM_OUT, LOW);
-  #endif
-  #if  SER2TXONLY ==1 && PWMON == 0
-    Serial1.begin(57600, SERIAL_8N1, SERIAL_TX_ONLY, PIN_SER1TX_2);  //CONNECTION TO ARDUINO (to use with UNO JOY)
-  #endif
+  
+  Serial1.begin(57600, SERIAL_8N1, SERIAL_TX_ONLY, PIN_SER1TX_2);  //CONNECTION TO ARDUINO (to use with UNO JOY)
 
   #if DEBGCH == 5
     TimerMux.setTime(3000000);
@@ -167,22 +104,7 @@ void setup() {
   #endif
   TimerIRonOff.setTime(70);
 
-  #if DEBGOUT != 0 //hitire max on 115200
-    Serial.begin(460800, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200);
-  #else
-    Serial.begin(115200, SERIAL_8N1, SERIAL_RX_ONLY); //hitire max on 115200!!!!
-  
-    //initialize hatire
-    hat.Begin=0xAAAA; // header frame 
-    hat.Cpt=0; // Frame Number or Error code 
-    hat.End=0x5555; // footer frame
-    hat.gyro[0] = 0;
-    hat.gyro[1] = 0;
-    hat.gyro[2] = 0;
-    hat.acc[0] = 0;
-    hat.acc[1] = 0; 
-    hat.acc[2] = 0;
-  #endif
+  Serial.begin(460800, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200);
 }
 
 void loop() {
@@ -237,74 +159,22 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
-      encoderScalerL.calculate((double)filtValue[1], (double)filtValue[2]); //TODO:(filterCH[1].getAverageDbl(), filterCH[2].getAverageDbl());
-      encoderL.setScalings(1,2,29,29);
-      encoderR.setScalings(1,2,30,29);
-      encoderL_Result = encoderL.calc((int)filtValue[1], (int)filtValue[2]);
-      encoderR_Result = encoderR.calc((int)filtValue[3], (int)filtValue[4]);
+      encoderL.setScalings(1,1,30,30);
+      encoderR.setScalings(1,1,30,30);
+      encoderL_Result = encoderL.calc((int)analogRaw[1], (int)analogRaw[2]);
+      encoderR_Result = encoderR.calc((int)analogRaw[3], (int)analogRaw[4]);
+      dbugprint(" L:");
+      encoderL.debug(Serial);
+      dbugprint(" R:");
+      encoderR.debug(Serial);
   
-      /*bIR_LED_on = true;
-      digitalWrite(IR_LEDS, bIR_LED_on ? HIGH : LOW);  */ 
-      #if DEBGOUT == 2
-        Serial.print(analogRaw1);
-        Serial.print("  ");
-        Serial.println(analogRaw2);
-      #elif DEBGOUT == 3
-        Serial.print(filtValue[1]);
-        Serial.print("  ");
-        Serial.print(filtValue[2]);
-        Serial.print("  ");
-        Serial.print(sumCh1u2);
-        Serial.print("  ");
-        Serial.print(filtValue[1] -filtValue[2]);
-        Serial.print("  ");
-      #elif DEBGOUT == 4
-        Serial.print(filtValue[1]);
-        Serial.print("  ");
-        Serial.print(filterA.getNbrMeas());
-      #endif
 
       minRPedal = -250; //TODO   -1000;
       maxRPedal = 250; //TODO   1000;
-      #if PWMON == 1 && SER2TXONLY == 0
-        int pwmscaled = constrain(map(encoderL_Result, minRPedal, maxRPedal, 10 , 245), 10, 245);
-        digitalWrite(PIN_PWM_OUT, pwmscaled);
-        Serial.print("  ");
-        Serial.println(pwmscaled);
-        //digitalWrite(PIN_PWM_OUT, map(encoderL_Result, minRPedal, maxRPedal, 10 , 245));
-      #endif
-      #if SER2TXONLY ==1 && PWMON == 0
-        int serscaled = constrain(map((encoderL_Result - encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
-        Serial1.write(serscaled);
-      #endif
       
-
-      #if SCALEM == 0
-        encoderL_Result = map(encoderL_Result, minRPedal, maxRPedal, 0 , -180);  //TODO:
-      #elif SCALEM == 1
-        encoderL_Result = map(encoderL_Result, minRPedal, maxRPedal, 128 , 0);  //TODO:
-      #elif SCALEM == 2
-      #endif
-      //outputRudder = filtValue[1] + filtValue[2];
-      //out8BitRudder = outputRudder;  //old output for UNO_Joy
-
-      #if DEBGOUT == 0
-        if(abs(hat.gyro[0] - (float)encoderL_Result > 1)){
-          hat.gyro[0] = (float)encoderL_Result;
-
-            // Send HAT  Trame to  PC
-            Serial.write((byte*)&hat,30);
-            hat.Cpt++;
-            if (hat.Cpt>999) {
-                hat.Cpt=0;
-            }
-        }
-      #elif DEBGOUT == 1 
-        Serial.println(outputRudder);
-      #elif DEBGOUT == 10
-      Serial.print(encoderL_Result);
-      #endif
-
+      int serscaled = constrain(map((encoderL_Result - encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
+      Serial1.write(serscaled);
+     
       if(digitalRead(INP_0SWITCH_PULLUP) == LOW){ //inverted due to pullup
         if(cnt0swtch < 10000){
           cnt0swtch++;
@@ -318,6 +188,8 @@ void loop() {
       else{
         cnt0swtch = 0;
       }
+
+      
 
       #if DEBGOUT != 0
         t_lastcycl = t_now;
@@ -334,53 +206,46 @@ void loop() {
   }
   
   //MuxOuts 
-  #if DEBGCH == 0 || DEBGCH == 5
-    if(!bMuxDelay){
-      switch(act_Mux_Channel){
-        case 0: 
-        case 5: 
-          digitalWrite(ACT_MUX_CH1, LOW);
-          digitalWrite(ACT_MUX_CH2, LOW);
-          digitalWrite(ACT_MUX_CH3, LOW);
-          digitalWrite(ACT_MUX_CH4, LOW);
-          break;
-        case 1: 
-          digitalWrite(ACT_MUX_CH2, LOW);
-          digitalWrite(ACT_MUX_CH3, LOW);
-          digitalWrite(ACT_MUX_CH4, LOW);
-          digitalWrite(ACT_MUX_CH1, HIGH);
-          bMuxDelay = true;
-          break;
-        case 2: 
-          digitalWrite(ACT_MUX_CH1, LOW);
-          digitalWrite(ACT_MUX_CH3, LOW);
-          digitalWrite(ACT_MUX_CH4, LOW);
-          digitalWrite(ACT_MUX_CH2, HIGH);
-          bMuxDelay = true;
-          break;
-        case 3: 
-          digitalWrite(ACT_MUX_CH1, LOW);
-          digitalWrite(ACT_MUX_CH2, LOW);
-          digitalWrite(ACT_MUX_CH4, LOW);
-          digitalWrite(ACT_MUX_CH3, HIGH);
-          bMuxDelay = true;
-          break;
-        case 4: 
-          digitalWrite(ACT_MUX_CH1, LOW);
-          digitalWrite(ACT_MUX_CH2, LOW);
-          digitalWrite(ACT_MUX_CH3, LOW);
-          digitalWrite(ACT_MUX_CH4, HIGH);
-          bMuxDelay = true;
-          break;
-      }  
-    }     
-  #elif DEBGCH == 1
-    digitalWrite(ACT_MUX_CH2, LOW);
-    digitalWrite(ACT_MUX_CH1, HIGH);
-  #elif DEBGCH == 2
-    digitalWrite(ACT_MUX_CH1, LOW);
-    digitalWrite(ACT_MUX_CH2, HIGH);
-  #endif
+  if(!bMuxDelay){
+    switch(act_Mux_Channel){
+      case 0: 
+      case 5: 
+        digitalWrite(ACT_MUX_CH1, LOW);
+        digitalWrite(ACT_MUX_CH2, LOW);
+        digitalWrite(ACT_MUX_CH3, LOW);
+        digitalWrite(ACT_MUX_CH4, LOW);
+        break;
+      case 1: 
+        digitalWrite(ACT_MUX_CH2, LOW);
+        digitalWrite(ACT_MUX_CH3, LOW);
+        digitalWrite(ACT_MUX_CH4, LOW);
+        digitalWrite(ACT_MUX_CH1, HIGH);
+        bMuxDelay = true;
+        break;
+      case 2: 
+        digitalWrite(ACT_MUX_CH1, LOW);
+        digitalWrite(ACT_MUX_CH3, LOW);
+        digitalWrite(ACT_MUX_CH4, LOW);
+        digitalWrite(ACT_MUX_CH2, HIGH);
+        bMuxDelay = true;
+        break;
+      case 3: 
+        digitalWrite(ACT_MUX_CH1, LOW);
+        digitalWrite(ACT_MUX_CH2, LOW);
+        digitalWrite(ACT_MUX_CH4, LOW);
+        digitalWrite(ACT_MUX_CH3, HIGH);
+        bMuxDelay = true;
+        break;
+      case 4: 
+        digitalWrite(ACT_MUX_CH1, LOW);
+        digitalWrite(ACT_MUX_CH2, LOW);
+        digitalWrite(ACT_MUX_CH3, LOW);
+        digitalWrite(ACT_MUX_CH4, HIGH);
+        bMuxDelay = true;
+        break;
+    }  
+  }     
+ 
   
   
   /*dbugprint(act_Mux_Channel);
