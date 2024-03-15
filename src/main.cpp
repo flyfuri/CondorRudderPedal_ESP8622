@@ -20,8 +20,9 @@ int act_Mux_Channel = 0; //which MUX-Channel to activate (0 = none, 1,2,3,4)
 int i_clk; //counters: loopclock,measures CH1 measures CH2
 int resetADC;
 int daylightDist[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc (measure daylight desturbance by measure without LED activated)
-int analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
-//double filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
+float analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
+float filteredValues[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
+float scaledValues[5]= {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
 int encoderL_Result; //encoder LeftPedal Channel 1 and 2 
 int encoderR_Result; //encoder RightPedal Channel 3 and 4 
 unsigned long t_lastcycl, t_now, t_cycletime; //measure cycle time
@@ -63,7 +64,7 @@ void procDayLightFilter(short chNr, bool bLEDisON){
   if (chNr > 0 && chNr < 5){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; 
-      filterCH[chNr].measurement(analogRaw[chNr]); 
+      filteredValues[chNr] = filterCH[chNr].measurement(analogRaw[chNr]); 
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
