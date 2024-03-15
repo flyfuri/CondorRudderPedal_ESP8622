@@ -18,15 +18,14 @@
 
 int act_Mux_Channel = 0; //which MUX-Channel to activate (0 = none, 1,2,3,4)
 int i_clk; //counters: loopclock,measures CH1 measures CH2
-int resetADC;
 int daylightDist[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc (measure daylight desturbance by measure without LED activated)
-int analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
-//double filtValue[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
+float analogRaw[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc  
+float filteredValues[5] = {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
+float scaledValues[5]= {0,0,0,0,0}; //1=Ch1, 2=Ch2, etc
 int encoderL_Result; //encoder LeftPedal Channel 1 and 2 
 int encoderR_Result; //encoder RightPedal Channel 3 and 4 
 unsigned long t_lastcycl, t_now, t_cycletime; //measure cycle time
 int outputRudder;
-uint8_t out8BitRudder;
 int cnt0swtch = 0; //counter to "filter" zero switch
 
 //log settings
@@ -53,7 +52,6 @@ bool bIR_LED_on; //IR LED is on
 const int analogInPin = A0;  // ESP8266 Analog Pin ADC0 = A0
 
 int serscaled;  //value to HID
-int sensorValue = 0;  // value read from the pot
 
 ANFLTR::CFilterAnalogOverTime<int> Final_filter(15, 10000); //unsigned int(15), unsigned long(10000));
 void debuglogs();
@@ -63,7 +61,7 @@ void procDayLightFilter(short chNr, bool bLEDisON){
   if (chNr > 0 && chNr < 5){
     if (bLEDisON){
       analogRaw[chNr] = analogRead(analogInPin) - daylightDist[chNr]; 
-      filterCH[chNr].measurement(analogRaw[chNr]); 
+      filteredValues[chNr] = filterCH[chNr].measurement(analogRaw[chNr]); 
     }
     else{
       daylightDist[chNr] =  analogRead(analogInPin);
@@ -95,7 +93,7 @@ void setup() {
   bMuxDelay = false;
   bIR_LED_on = false;
   encoderL.setTo(0);
-  //analogReference(DEFAULT);
+  
   pinMode(A0, INPUT);
   pinMode(INP_0SWITCH_PULLUP,INPUT_PULLUP);
   pinMode(ACT_MUX_CH1, OUTPUT); 
@@ -122,7 +120,7 @@ void setup() {
   encoderL.setSumMidLine(80);
   encoderR.setSumMidLine(80);
 
-  Serial.begin(460800, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200);
+  Serial.begin(460800, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200); debug info sent here
 }
 
 void loop() {
@@ -177,12 +175,22 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
+      //calculate pedal position and send it to arduino HID--------------------------------------------------------------------
+
       AutoscalerLeft.update(filteredValues + 1, filteredValues + 2, scaledValues + 1, scaledValues + 2);
       AutoscalerRight.update(filteredValues + 3, filteredValues + 4, scaledValues + 3, scaledValues + 4);
 
       encoderL_Result = encoderL.calc(round(scaledValues[1]), round(scaledValues[2]));
       encoderR_Result = encoderR.calc(round(scaledValues[3]), round(scaledValues[4]));
       
+      serscaled = constrain(map((encoderR_Result - encoderL_Result), minPedal, maxPedal, 1 , 255), 1, 255);
+      outputRudder = constrain(Final_filter.measurement(serscaled), 1,255);
+
+      Serial1.write(outputRudder);
+
+
+      //debug info -----------------------------------------------------------------------------------------------------------
+
       while(Serial.available() > 0){
         dbugprintln(Serial.available());
         log_command=Serial.readString();
@@ -190,14 +198,10 @@ void loop() {
       }
       
       debuglogs();
-      
-      serscaled = constrain(map((encoderR_Result - encoderL_Result), minPedal, maxPedal, 1 , 255), 1, 255);
-      outputRudder = constrain(Final_filter.measurement(serscaled), 1,255);
 
-      Serial1.write(outputRudder);
      
       //set pedals to 0 with button -----------------------------------------------------------------------------------------------------------
-
+      //to initialize the pedals the switch must be pressed with the pedals once in full right and once in full left position
       if(digitalRead(INP_0SWITCH_PULLUP) == LOW){ //inverted due to pullup
         if(cnt0swtch < 10000){
           cnt0swtch++;
@@ -223,7 +227,7 @@ void loop() {
               }
             }
             if (travelPedal_L != 0 && travelPedal_R != 0){
-                int tmphalf = (abs(travelPedal_L) < abs(travelPedal_R) ? abs(travelPedal_L) : abs(travelPedal_R)) * 0.95;
+                int tmphalf = (abs(travelPedal_L) < abs(travelPedal_R) ? abs(travelPedal_L) : abs(travelPedal_R)) * 0.98; //factor 0.98 ensures to reach max short before mechanical stop
                 minPedal = tmphalf * -1;
                 maxPedal = tmphalf;
                 posBackPedal_L = 0;
@@ -296,7 +300,19 @@ void loop() {
   }     
 }
 
-// send debug information to analyze signals
+
+
+//------------------------------------------------------------------------------------------------------------------------------------
+// send debug information to analyze signals 
+// commands can be sent to the ESP to activate/diactivate certain debug informations to be sent
+// unfortunately the monitor filter sentOnEnter seems not to work in VSCode use another terminal like CoolTerminal 
+// commands:
+//   t    activate/disactivate cycletime (should be lower than 2000 micros)
+//   r    deactivate all debug infos
+//   ?    list acivated infos (not implemented completly)
+//   1..  any positive number activates the corresponding information to be sent (options check code below)
+//   -1.. any negative number disactivates the corresponding information 
+
 void debuglogs(){
   int intcmd = log_command.toInt();
 
