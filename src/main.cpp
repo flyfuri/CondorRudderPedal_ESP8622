@@ -119,6 +119,9 @@ void setup() {
   #endif
   TimerIRonOff.setTime(70);
 
+  encoderL.setSumMidLine(80);
+  encoderR.setSumMidLine(80);
+
   Serial.begin(460800, SERIAL_8N1, SERIAL_FULL);//;(256000);//(230400);//(460800);//(115200);
 }
 
