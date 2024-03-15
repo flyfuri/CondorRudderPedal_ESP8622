@@ -6,7 +6,9 @@
 #include <IO_wiring.h>
 #include <ESP8266WiFi.h>
 
-#if DEBGOUT == 99
+#define DEBGOUT 1 //usually 1  (0: don't print anything, 1: print debug function stuff, >1: special, often temporary)
+
+#if DEBGOUT > 0  
   #define dbugprint(x) Serial.print(x)
   #define dbugprintln(x) Serial.println(x)
 #else
@@ -27,6 +29,14 @@ int outputRudder;
 uint8_t out8BitRudder;
 int cnt0swtch = 0; //counter to "filter" zero switch
 
+//log settings
+#define LOG_OPTIONS_SIZE 140
+String log_separator = ",";
+String log_command = "";
+bool log_options[LOG_OPTIONS_SIZE];
+float log_tempmem[LOG_OPTIONS_SIZE];
+String logdescr[LOG_OPTIONS_SIZE];
+
 
 ANFLTR::CFilterAnalogOverMeasures<float> filterCH[5] = {{1, 1}, {5, 5}, {5, 5}, {5, 5}, {5, 5} }; //0 = not used, 1=Ch1, 2=Ch2, ...
 CAutoScalePair<float> AutoscalerLeft = {0, 100}; //{targMin, targMax}
@@ -44,6 +54,7 @@ const int analogInPin = A0;  // ESP8266 Analog Pin ADC0 = A0
 
 int sensorValue = 0;  // value read from the pot
 
+void debuglogs();
 
 //procedure read channel with daylight filter
 void procDayLightFilter(short chNr, bool bLEDisON){
@@ -167,6 +178,9 @@ void loop() {
       
       int serscaled = constrain(map((encoderL_Result - encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
       Serial1.write(serscaled);
+      
+      debuglogs();
+      
      
       if(digitalRead(INP_0SWITCH_PULLUP) == LOW){ //inverted due to pullup
         if(cnt0swtch < 10000){
@@ -181,20 +195,19 @@ void loop() {
       else{
         cnt0swtch = 0;
       }
+      //------------------------------------------------------------------------------------------------------------------------------------
 
-      
+      //print cycletime if chosen and wait to make cycle time to a fix value
 
-      #if DEBGOUT != 0
-        t_lastcycl = t_now;
-        do{
-          t_now = micros();
-          t_cycletime = t_now - t_lastcycl;
-        }while(t_cycletime < 2000);
-        //Serial.print(";");
-        Serial.print(serscaled);
-        Serial.print(";");
-        Serial.println(t_cycletime);
-      #endif       
+      t_lastcycl = t_now;
+      t_now = micros();
+      t_cycletime = t_now - t_lastcycl;
+      if (log_options[0]){dbugprintln(t_cycletime);}
+      else{dbugprintln("");}
+      while(t_cycletime < 2000){
+        t_now = micros();
+        t_cycletime = t_now - t_lastcycl;
+      }      
     }        
   }
   
@@ -238,16 +251,237 @@ void loop() {
         break;
     }  
   }     
- 
-  
-  
-  /*dbugprint(act_Mux_Channel);
-  dbugprint(" ");
-  dbugprint(i_clk);
-  dbugprint(" ");
-  dbugprint(bMuxDelay == true ? "true" : "false" );
-  dbugprint(" ");
-  dbugprint(TimerMux.getDelay());
-  dbugprint(" ");
-  dbugprintln(TimerMux.getElapsedTime());*/
 }
+
+// send debug information to analyze signals
+void debuglogs(){
+  int intcmd = log_command.toInt();
+
+  if(intcmd > 0 && intcmd < LOG_OPTIONS_SIZE){
+    log_options[intcmd] = true;
+  }
+  else if(intcmd < 0 && abs(intcmd) < LOG_OPTIONS_SIZE){
+    log_options[abs(intcmd)] = false;
+  }
+  else if(log_command == "?"){
+    for(int i = 1; i < LOG_OPTIONS_SIZE; i++){
+      if(log_options[i]){
+        dbugprint(i);
+        dbugprint(log_separator);
+      }
+    }
+    if(log_options[0]){
+      dbugprint(" ");
+      dbugprintln(log_separator);
+    }
+  }
+  else if(log_command == "r"){
+    for(int i = 1; i < LOG_OPTIONS_SIZE; i++){
+      log_options[i]=false;
+    }
+  }
+  else if(log_command == "t"){
+    log_options[0] = !log_options[0];
+  }
+  else if (log_command == ";" || log_command == ","){
+    log_separator = log_command;
+  }else if (isSpace(log_command[0])){
+    log_separator = "  ";
+  }
+  
+  log_command = "";
+
+  //send choosen options
+
+  String lastReadTmp = "";
+  for(int i = 0; i < LOG_OPTIONS_SIZE; i++){
+      if(log_options[i]){
+        switch(i){
+          case 1: 
+            dbugprint((int)analogRaw[1]);
+            break;
+          case 2: 
+            dbugprint((int)analogRaw[2]);
+            break;
+          case 3: 
+            dbugprint((int)analogRaw[3]);
+            break;
+          case 4: 
+            dbugprint((int)analogRaw[4]);
+            break;
+          case 5: 
+            dbugprint((int)scaledValues[1]);
+            break;
+          case 6: 
+            dbugprint((int)scaledValues[2]);
+            break;
+          case 7: 
+            dbugprint((int)scaledValues[3]);
+            break;
+          case 8: 
+            dbugprint((int)scaledValues[4]);
+            break;
+          case 11:
+          case 12:
+          case 13:
+          case 14:
+          case 15:
+          case 16:
+          case 17:
+          case 18:
+          case 19:
+          case 20:
+          case 21:
+          case 22: 
+          case 23:
+          case 24:
+          case 25:
+          case 26:
+            if(lastReadTmp != "PedalLeftChA"){
+              AutoscalerLeft.debugChA(log_tempmem+11,16);
+              lastReadTmp = "PedalLeftChA";
+            }
+            dbugprint(log_tempmem[i]);
+            break;
+          case 30:
+          case 32:
+          case 33:
+          case 34:
+          case 35:
+          case 36:
+          case 37:
+          case 38:
+          case 39:
+          case 40:
+          case 41:
+          case 42:  
+          case 43:
+          case 44:
+          case 45:
+            if(lastReadTmp != "PedalLeftChB"){
+              AutoscalerLeft.debugChB(log_tempmem+30,16);
+              lastReadTmp = "PedalLeftChB";
+            }
+            dbugprint(log_tempmem[i]);
+            break;
+          case 50:
+          case 51:
+          case 52:
+          case 53:
+          case 54:
+          case 55:
+          case 56:
+          case 57:
+          case 58:
+          case 59:
+          case 60:
+          case 61:
+          case 62:  
+          case 63:
+          case 64:
+          case 65:
+            if(lastReadTmp != "PedalRightChA"){
+              AutoscalerRight.debugChA(log_tempmem+50,16);
+              lastReadTmp = "PedalRightChA";
+            }
+            dbugprint(log_tempmem[i]);
+            break;
+          case 70:
+          case 71:
+          case 72:
+          case 73:
+          case 74:
+          case 75:
+          case 76:
+          case 77:
+          case 78:
+          case 79:
+          case 80:
+          case 81:
+          case 82:  
+          case 83:
+          case 84:
+          case 85:
+          case 86:
+            if(lastReadTmp != "PedalRightChB"){
+              AutoscalerRight.debugChB(log_tempmem+70,16);
+              lastReadTmp = "PedalRightChB";
+            }
+            dbugprint(log_tempmem[i]);
+            break;     
+          case 90:
+            dbugprint(serscaled);
+            break;
+          case 91:
+            dbugprint(encoderL_Result);
+            break;
+          case 92:
+            dbugprint(encoderR_Result);
+            break;
+          case 93:
+            dbugprint(posBackPedal_L);
+            break;
+          case 94:
+            dbugprint(posBackPedal_R);
+            break;
+          case 95:
+            dbugprint(travelPedal_L);
+            break;
+          case 96:
+            dbugprint(travelPedal_R);
+            break;
+          case 97:
+            dbugprint(minPedal);
+            break;
+          case 98:
+            dbugprint(maxPedal);
+            break;
+          case 101:
+          case 102:
+          case 103:
+          case 104:
+          case 105:
+          case 106:
+          case 107:
+          case 108:
+          case 109:
+          case 110:
+          case 111:
+          case 112: 
+          case 113: 
+          case 114: 
+          case 115: 
+            if(lastReadTmp != "PedalLeftCounter"){
+              encoderL.debug(log_tempmem+101,15);
+              lastReadTmp = "PedalLeftCounter";
+            }
+            dbugprint(log_tempmem[i]);
+            break;
+          case 121:
+          case 122:
+          case 123:
+          case 124:
+          case 125:
+          case 126:
+          case 127:
+          case 128:
+          case 129:
+          case 130:
+          case 131:
+          case 132: 
+          case 133: 
+          case 134: 
+          case 135: 
+            if(lastReadTmp != "PedalRightCounter"){
+              encoderR.debug(log_tempmem+121,15);
+              lastReadTmp = "PedalRightCounter";
+            }
+            dbugprint(log_tempmem[i]);
+            break;
+        }
+        dbugprint(log_separator);
+      }
+    }
+    
+}
+
