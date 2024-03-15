@@ -44,16 +44,18 @@ CAutoScalePair<float> AutoscalerRight = {0, 100}; //{targMin, targMax}
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
 TIMER::CTimerMicros TimerMux, TimerIRonOff;
 CSinIncCntr encoderL, encoderR; //encoder Left pedal and Right pedal
-float minLPedal, maxLPedal, minRPedal, maxRPedal;
-float tempLPedal, tempRPedal;
-bool tLres, tRres, blkFlag; 
+int minPedal = 0, maxPedal = 0;
+int posBackPedal_L = 0, posBackPedal_R = 0;
+int travelPedal_L = 0, travelPedal_R = 0;
 bool bMuxDelay, bIRonoffDelay; //wait for mux delay
 bool bIR_LED_on; //IR LED is on
 
 const int analogInPin = A0;  // ESP8266 Analog Pin ADC0 = A0
 
+int serscaled;  //value to HID
 int sensorValue = 0;  // value read from the pot
 
+ANFLTR::CFilterAnalogOverTime<int> Final_filter(15, 10000); //unsigned int(15), unsigned long(10000));
 void debuglogs();
 
 //procedure read channel with daylight filter
@@ -82,10 +84,12 @@ void readChannel(short chNr, bool bLEDisON){
 void setup() {
   // put your setup code here, to run once:
   act_Mux_Channel = 0;
-  minLPedal=-9999;
-  maxLPedal=-9999;
-  minRPedal=-9999;
-  maxRPedal=-9999;
+  minPedal=-250;
+  maxPedal=250;
+  posBackPedal_L = 0;
+  posBackPedal_R = 0;
+  travelPedal_L = 0;
+  travelPedal_R = 0;
   i_clk=0;
   encoderL_Result=0;
   bMuxDelay = false;
@@ -176,18 +180,54 @@ void loop() {
       encoderL_Result = encoderL.calc(round(scaledValues[1]), round(scaledValues[2]));
       encoderR_Result = encoderR.calc(round(scaledValues[3]), round(scaledValues[4]));
       
-      int serscaled = constrain(map((encoderL_Result - encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
-      Serial1.write(serscaled);
+      while(Serial.available() > 0){
+        dbugprintln(Serial.available());
+        log_command=Serial.readString();
+        log_command.trim();
+      }
       
       debuglogs();
       
+      serscaled = constrain(map((encoderR_Result - encoderL_Result), minPedal, maxPedal, 1 , 255), 1, 255);
+      outputRudder = constrain(Final_filter.measurement(serscaled), 1,255);
+
+      Serial1.write(outputRudder);
      
+      //set pedals to 0 with button -----------------------------------------------------------------------------------------------------------
+
       if(digitalRead(INP_0SWITCH_PULLUP) == LOW){ //inverted due to pullup
         if(cnt0swtch < 10000){
           cnt0swtch++;
           if(cnt0swtch > 200){  //min 200 cycles on(aprox. 2ms each, results in aprox. 350-500ms )
-            encoderL.setTo(0);
-            encoderR.setTo(0);
+            if(encoderL_Result - encoderR_Result > 100){  //Left is greater (to be set to 0)
+              if(posBackPedal_L != 0){
+                travelPedal_L = encoderL_Result - posBackPedal_L;  //calc difference when point furtest back was memorized before
+              }
+              encoderL.setTo(0);
+              if(posBackPedal_R == 0){
+                posBackPedal_R = encoderR_Result; //memorize point furtest back
+                travelPedal_R = posBackPedal_R;
+              }
+            }
+            else if(encoderR_Result - encoderL_Result > 100){ //Right is greater (to be set to 0)
+              if(posBackPedal_R != 0){
+                travelPedal_R = encoderR_Result - posBackPedal_R;  //calc difference when point furtest back was memorized before
+              }
+              encoderR.setTo(0);
+              if(posBackPedal_L == 0){
+                posBackPedal_L = encoderL_Result; //memorize point furtest back
+                travelPedal_L = posBackPedal_L;
+              }
+            }
+            if (travelPedal_L != 0 && travelPedal_R != 0){
+                int tmphalf = (abs(travelPedal_L) < abs(travelPedal_R) ? abs(travelPedal_L) : abs(travelPedal_R)) * 0.95;
+                minPedal = tmphalf * -1;
+                maxPedal = tmphalf;
+                posBackPedal_L = 0;
+                posBackPedal_R = 0;
+                travelPedal_L = 0;
+                travelPedal_R = 0;
+              }
             cnt0swtch = 10001;
           }
         }
