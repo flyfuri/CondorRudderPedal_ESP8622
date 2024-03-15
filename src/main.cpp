@@ -2,7 +2,7 @@
 #include <timer.h>
 #include <analog_filter.h>
 #include <SinusoidIncCounter.h>
-#include <ChannelPairScaler.h>  
+#include <AutoscalePair.h> 
 #include <IO_wiring.h>
 #include <ESP8266WiFi.h>
 
@@ -28,11 +28,11 @@ uint8_t out8BitRudder;
 int cnt0swtch = 0; //counter to "filter" zero switch
 
 
-ANFLTR::CFilterAnalogOverMeasures<int> filterCH[5] = {{1, 1}, {20, 20}, {20, 20}, {20, 20}, {20, 20} }; //0 = not used, 1=Ch1, 2=Ch2, ...
+ANFLTR::CFilterAnalogOverMeasures<float> filterCH[5] = {{1, 1}, {5, 5}, {5, 5}, {5, 5}, {5, 5} }; //0 = not used, 1=Ch1, 2=Ch2, ...
+CAutoScalePair<float> AutoscalerLeft = {0, 100}; //{targMin, targMax}
+CAutoScalePair<float> AutoscalerRight = {0, 100}; //{targMin, targMax}
 TIMER::CTimerMillis TimerInitLeft, TimerInitRigth, TimerBlink;
 TIMER::CTimerMicros TimerMux, TimerIRonOff;
-//CSinCosScaler<double> encoderScalerL = {29,100}; //channel scaler for encoder Left
-//CSinCosScaler<double> encoderScalerR = {29,100}; //channel scaler for encoder Right
 CSinIncCntr encoderL, encoderR; //encoder Left pedal and Right pedal
 float minLPedal, maxLPedal, minRPedal, maxRPedal;
 float tempLPedal, tempRPedal;
@@ -159,18 +159,11 @@ void loop() {
       act_Mux_Channel = 1;  //trigger 1 measure (IR off, measure disturbing light)for all channels
       i_clk = 10;
 
-      encoderL.setScalings(1,1,30,30);
-      encoderR.setScalings(1,1,30,30);
-      encoderL_Result = encoderL.calc((int)analogRaw[1], (int)analogRaw[2]);
-      encoderR_Result = encoderR.calc((int)analogRaw[3], (int)analogRaw[4]);
-      dbugprint(" L:");
-      encoderL.debug(Serial);
-      dbugprint(" R:");
-      encoderR.debug(Serial);
-  
+      AutoscalerLeft.update(filteredValues + 1, filteredValues + 2, scaledValues + 1, scaledValues + 2);
+      AutoscalerRight.update(filteredValues + 3, filteredValues + 4, scaledValues + 3, scaledValues + 4);
 
-      minRPedal = -250; //TODO   -1000;
-      maxRPedal = 250; //TODO   1000;
+      encoderL_Result = encoderL.calc(round(scaledValues[1]), round(scaledValues[2]));
+      encoderR_Result = encoderR.calc(round(scaledValues[3]), round(scaledValues[4]));
       
       int serscaled = constrain(map((encoderL_Result - encoderR_Result), minRPedal, maxRPedal, 1 , 255), 1, 255);
       Serial1.write(serscaled);
