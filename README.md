@@ -20,4 +20,4 @@ The Arduino program is based on [UnoJoy]([https://github.com/kegarlv/ArduinoJoy]
 The library [DirtySignal_Sin_Cos_Encoder](https://github.com/flyfuri/DirtySignal_Sin_Cos_Encoder) is used to condition and encode the signals. Another library [TimerAndFilter](https://github.com/flyfuri/TimerAndFilter). Both libraries were originally developed for this project.
 
 ### Hardware:
-![Alt Text](/docs/pics/schematic_small_pic.jpg?raw=true "schematic")
+![Alt Text](/docs/pics/schematic_small_pic.JPG?raw=true "schematic")
